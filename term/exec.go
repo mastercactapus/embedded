@@ -118,6 +118,7 @@ func (sh *Shell) Exec() error {
 			}
 			sh.w.Flush()
 		}
+		sh.w.Flush()
 
 		// remove identical entries
 		for i, entry := range history {
@@ -164,22 +165,21 @@ func (sh *Shell) Exec() error {
 			}
 		}
 
-		sh.lastCmdErr = cmd.exec(ctx)
-		cmd.sh.state = nil
+		sh.lastCmdErr = cmd.Exec(ctx)
+		if cmd.isShell {
+			cmd.sh.state = nil
+		}
 		var exit exitErr
 		if errors.As(sh.lastCmdErr, &exit) {
 			sh.lastCmdErr = nil
 			return exit.error
 		}
 		var usage usageErr
-		if errors.As(cmd.panicErr, &usage) {
-			ctx.usage(usage.msg)
-			if usage.msg == "" {
+		if errors.As(sh.lastCmdErr, &usage) {
+			ctx.usage(usage.err)
+			if usage.err == nil {
 				sh.lastCmdErr = nil
 			}
-			cmd.panicErr = nil
-		} else {
-			sh.lastCmdErr = cmd.panicErr
 		}
 		if sh.lastCmdErr != nil {
 			sh.p.Fg(ansi.Red)

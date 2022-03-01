@@ -110,27 +110,29 @@ func (cmd *CmdCtx) Get(key string) interface{} {
 	return cmd.c.sh.state[key]
 }
 
-func (cmd *CmdCtx) Parse() {
+func (cmd *CmdCtx) Parse() error {
 	for _, f := range cmd.env.Flags {
 		if f != "-h" {
 			continue
 		}
 
-		panic(usageErr{})
+		return usageErr{}
 	}
 
 	if cmd.parseErr != nil {
-		panic(usageErr{msg: cmd.parseErr.Error()})
+		return usageErr{cmd.parseErr}
 	}
 
 	if len(cmd.env.Args) > 0 {
-		panic(usageErr{msg: "unexpected argument: " + cmd.env.Args[0]})
+		return UsageError("unexpected argument: %s", cmd.env.Args[0])
 	}
 	if len(cmd.env.Flags) > 0 {
-		panic(usageErr{msg: "unexpected flag: " + cmd.env.Flags[0]})
+		return UsageError("unexpected flag: %s", cmd.env.Flags[0])
 	}
+
+	return nil
 }
 
-func (cmd *CmdCtx) UsageError(format string, a ...interface{}) {
-	panic(usageErr{msg: fmt.Sprintf(format, a...)})
+func UsageError(format string, a ...interface{}) error {
+	return usageErr{err: fmt.Errorf(format, a...)}
 }

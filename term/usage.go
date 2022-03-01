@@ -6,12 +6,12 @@ import (
 	"github.com/mastercactapus/embedded/term/ansi"
 )
 
-func (cmd *CmdCtx) usage(errMsg string) {
+func (cmd *CmdCtx) usage(err error) {
 	cmd.addFlag(Flag{Name: "h", Desc: "Show this help message"}, "")
 	p := cmd.Printer()
-	if errMsg != "" {
+	if err != nil {
 		p.Fg(ansi.Red)
-		p.Println(errMsg)
+		p.Println(err.Error())
 		p.Reset()
 	}
 

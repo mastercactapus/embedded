@@ -1,9 +1,13 @@
 package term
 
 type usageErr struct {
-	msg string
+	err error
 }
 
 func (e usageErr) Error() string {
-	return e.msg
+	if e.err != nil {
+		return e.err.Error()
+	}
+
+	return "usage requested"
 }

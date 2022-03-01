@@ -73,6 +73,13 @@ func NewShell(name, desc string, r io.Reader, w io.Writer) *Shell {
 
 type exitErr struct{ error }
 
+func launchSubShell(c *CmdCtx) error {
+	if err := c.Parse(); err != nil {
+		return err
+	}
+	return c.c.sh.Exec()
+}
+
 func (sh *Shell) NewSubShell(cmd Command) *Shell {
 	if _, ok := sh.cmds[cmd.Name]; ok {
 		panic("command already exists: " + cmd.Name)
@@ -81,12 +88,9 @@ func (sh *Shell) NewSubShell(cmd Command) *Shell {
 	subSh := NewShell(cmd.Name, cmd.Desc, sh.r, sh.w)
 	subSh.parent = sh
 	subSh.init = cmd.Exec
-	cmd.Exec = func(c *CmdCtx) error {
-		c.Parse()
-		return subSh.Exec()
-	}
+	cmd.Exec = launchSubShell
 
-	sh.cmds[cmd.Name] = &cmdData{Command: cmd, sh: sh}
+	sh.cmds[cmd.Name] = &cmdData{Command: cmd, sh: subSh, isShell: true}
 	sh.shNames = append(sh.shNames, cmd.Name)
 	sort.Strings(sh.shNames)
 

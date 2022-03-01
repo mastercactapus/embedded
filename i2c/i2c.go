@@ -33,8 +33,8 @@ func (i2c *I2C) Configure(config Config) error {
 	i2c.sda = config.SDA
 	i2c.scl = config.SCL
 
-	// i2c.sda.PullupHigh()
-	// i2c.scl.PullupHigh()
+	i2c.sda.PullupHigh()
+	i2c.scl.PullupHigh()
 
 	i2c.SetBaudrate(config.Baudrate)
 	return nil

@@ -9,7 +9,9 @@ import (
 
 var builtins = []Command{
 	{"help", "Print this help message.", func(c *CmdCtx) error {
-		c.Parse()
+		if err := c.Parse(); err != nil {
+			return err
+		}
 		p := c.Printer()
 
 		p.Reset()
@@ -49,8 +51,11 @@ var builtins = []Command{
 	}},
 
 	{"clear", "Clear the screen.", func(c *CmdCtx) error {
-		c.Parse()
-		c.Printer().Esc('c')
+		if err := c.Parse(); err != nil {
+			return err
+		}
+
+		c.Printer().Esc('J', 2)
 		return nil
 	}},
 
@@ -58,7 +63,9 @@ var builtins = []Command{
 		c.Example("export FOO=1", "Set the FOO variable to 1.")
 		c.Example("export FOO=", "Clear the FOO variable.")
 		flags := c.ArgStringN(Arg{Name: "ENV", Desc: "KEY=value pairs of env variables to set.", Req: true})
-		c.Parse()
+		if err := c.Parse(); err != nil {
+			return err
+		}
 
 		toSet := flags[:0]
 		for _, flag := range flags {
@@ -82,7 +89,9 @@ var builtins = []Command{
 	}},
 
 	{"env", "Print environment values.", func(c *CmdCtx) error {
-		c.Parse()
+		if err := c.Parse(); err != nil {
+			return err
+		}
 
 		for _, pair := range c.c.sh.env {
 			c.Printer().Println(pair)
@@ -92,7 +101,9 @@ var builtins = []Command{
 	}},
 
 	{"reset", "Reset all environment variables.", func(c *CmdCtx) error {
-		c.Parse()
+		if err := c.Parse(); err != nil {
+			return err
+		}
 
 		c.c.sh.env = c.c.sh.env[:0]
 		return nil
@@ -100,7 +111,9 @@ var builtins = []Command{
 
 	{"exit", "Exits the current shell.", func(c *CmdCtx) error {
 		errMsg := c.ArgString(Arg{Name: "message", Desc: "If not empty, exits the shell with error message."})
-		c.Parse()
+		if err := c.Parse(); err != nil {
+			return err
+		}
 
 		if errMsg != "" {
 			return exitErr{errors.New(errMsg)}
