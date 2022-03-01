@@ -1,7 +1,5 @@
 package i2c
 
-import "log"
-
 type DeviceID uint32
 
 const reservedAddr = 0x78
@@ -9,7 +7,7 @@ const reservedAddr = 0x78
 func (i2c *I2C) Ping(addr byte) error {
 	i2c.Start()
 	defer i2c.Stop()
-	log.Println("ye")
+
 	return i2c.WriteByte((addr << 1) | 1)
 }
 
