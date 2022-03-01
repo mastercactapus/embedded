@@ -36,4 +36,42 @@ func AddI2C(sh *term.Shell, sda, scl i2c.Pin) {
 
 		return bus.Ping(addr)
 	}})
+
+	i2cSh.AddCommand(term.Command{Name: "scan", Desc: "Scan for devices.", Exec: func(c *term.CmdCtx) error {
+		if err := c.Parse(); err != nil {
+			return err
+		}
+
+		bus, ok := c.Get("i2c").(*i2c.I2C)
+		if !ok {
+			return fmt.Errorf("i2c: not available")
+		}
+
+		p := c.Printer()
+		for i := 0; i < 127; i++ {
+			canRead := bus.Ping(byte(i)) == nil
+			canWrite := bus.PingW(byte(i)) == nil
+			if !canRead && !canWrite {
+				continue
+			}
+
+			p.Printf("%02x: ", i)
+			switch {
+			case canRead && canWrite:
+				p.Printf("RW")
+			case canRead && !canWrite:
+				p.Printf("RO")
+			case !canRead && canWrite:
+				p.Printf("WO")
+			}
+
+			id, err := bus.DeviceID(byte(i))
+			if err == nil {
+				p.Printf(" ID=%x", id)
+			}
+			p.Println()
+		}
+
+		return nil
+	}})
 }
