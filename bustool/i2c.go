@@ -27,7 +27,7 @@ func AddI2C(sh *term.Shell, sda, scl i2c.Pin) *term.Shell {
 			SCL: scl,
 		})
 		if err != nil {
-			// return err
+			return err
 		}
 
 		return exec(context.WithValue(ctx, ctxKeyI2C, bus))

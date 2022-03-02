@@ -20,7 +20,8 @@ func main() {
 		}
 
 		sh := bustool.NewShell(conn, conn)
-		bustool.AddI2C(sh, nil, nil)
+		i2cSh := bustool.AddI2C(sh, nilPin(false), nilPin(true))
+		bustool.AddMem(i2cSh)
 
 		err = sh.Exec(context.Background())
 		if err != nil {

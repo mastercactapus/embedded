@@ -251,6 +251,10 @@ func (d *Device) Write(p []byte) (n int, err error) {
 	return n, nil
 }
 
+func (d *Device) Size() int {
+	return d.maxLen
+}
+
 func (d *Device) Seek(offset int64, whence int) (int64, error) {
 	if offset < 0 {
 		return 0, fmt.Errorf("offset must be >= 0")

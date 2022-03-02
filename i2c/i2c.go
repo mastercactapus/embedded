@@ -30,11 +30,12 @@ func (i2c *I2C) Configure(config Config) error {
 	if config.Baudrate == 0 {
 		config.Baudrate = 100e3
 	}
+
+	i2c.sda = config.SDA
+	i2c.scl = config.SCL
 	if i2c.sda == nil || i2c.scl == nil {
 		return errors.New("i2c: pins not configured")
 	}
-	i2c.sda = config.SDA
-	i2c.scl = config.SCL
 
 	i2c.sda.PullupHigh()
 	i2c.scl.PullupHigh()
@@ -68,6 +69,7 @@ func (i2c *I2C) Start() {
 	i2c.waitHalf()
 }
 
+// TODO: set timeout based on baud
 func (i2c *I2C) clockUp() {
 	i2c.scl.PullupHigh()
 	for !i2c.scl.Get() {

@@ -177,6 +177,7 @@ func (sh *Shell) Exec(ctx context.Context) error {
 			} else {
 				sh.p.Fg(ansi.Red)
 				sh.p.Println(usage.err.Error())
+				sh.p.Reset()
 			}
 			if cmd.Desc != "" {
 				sh.p.Println(cmd.Desc)

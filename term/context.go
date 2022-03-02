@@ -46,7 +46,7 @@ func withEnv(ctx context.Context, name, val string) context.Context {
 func Parse(ctx context.Context) *FlagParser {
 	cmd, ok := ctx.Value(ctxKeyCmd).(*cmdContext)
 	if !ok {
-		return nil
+		panic("Parse called but no command context")
 	}
 	if cmd.fp == nil {
 		cmd.fp = NewFlagParser(cmd.env, func(name string) string {

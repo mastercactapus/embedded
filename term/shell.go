@@ -86,6 +86,7 @@ func (sh *Shell) NewSubShell(cmd Command) *Shell {
 	}
 
 	subSh := NewShell(cmd.Name, cmd.Desc, sh.r, sh.w)
+	subSh.parent = sh
 	cmd.Exec = launchSubShell
 
 	sh.cmds[cmd.Name] = &cmdData{Command: cmd, sh: subSh, isShell: true}
