@@ -1,41 +1,49 @@
 package i2c
 
-func (i2c *I2C) WriteRegister(addr, reg byte, p []byte) (int, error) {
+import (
+	"tinygo.org/x/drivers"
+)
+
+var _ drivers.I2C = (*I2C)(nil)
+
+func (i2c *I2C) WriteRegister(addr, reg byte, p []byte) error {
 	i2c.Start()
 	defer i2c.Stop()
 
 	if err := i2c.WriteByte(addr << 1); err != nil {
-		return 0, err
+		return err
 	}
 
 	if err := i2c.WriteByte(reg); err != nil {
-		return 0, err
+		return err
 	}
 
-	return i2c.Write(p)
+	_, err := i2c.Write(p)
+	return err
 }
 
-func (i2c *I2C) ReadRegister(addr, reg byte, p []byte) (int, error) {
+func (i2c *I2C) ReadRegister(addr, reg byte, p []byte) error {
 	i2c.Start()
 	defer i2c.Stop()
 
 	if err := i2c.WriteByte((addr << 1) | 1); err != nil {
-		return 0, err
+		return err
 	}
 
 	if err := i2c.WriteByte(reg); err != nil {
-		return 0, err
+		return err
 	}
 
-	return i2c.Read(p)
+	_, err := i2c.Read(p)
+	return err
 }
 
-func (i2c *I2C) Tx(addr byte, r, w []byte) error {
+func (i2c *I2C) Tx(addr uint16, r, w []byte) error {
 	i2c.Start()
 	defer i2c.Stop()
 
 	if len(w) > 0 {
-		if err := i2c.WriteByte(addr << 1); err != nil {
+		if err := i2c.WriteByte(byte(addr << 1)); err != nil {
 			return err
 		}
 
@@ -49,7 +57,7 @@ func (i2c *I2C) Tx(addr byte, r, w []byte) error {
 			// repeated start
 			i2c.Start()
 		}
-		if err := i2c.WriteByte((addr << 1) | 1); err != nil {
+		if err := i2c.WriteByte(byte(addr<<1) | 1); err != nil {
 			return err
 		}
 

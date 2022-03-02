@@ -1,13 +1,14 @@
 package term
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	"github.com/mastercactapus/embedded/term/ansi"
 )
 
-func (sh *Shell) Exec() error {
+func (sh *Shell) Exec(ctx context.Context) error {
 	rd := sh.r
 	var history []string
 	var histIndex int
@@ -130,7 +131,7 @@ func (sh *Shell) Exec() error {
 		history = append(history, string(input))
 		histIndex = len(history)
 
-		cmdEnv, err := ParseCommandEnv(string(input), sh.env)
+		cmdEnv, err := ParseCommandEnv(string(input))
 		input = input[:0]
 		pos = 0
 		if errors.Is(err, ErrNoCommand) {
@@ -147,41 +148,38 @@ func (sh *Shell) Exec() error {
 			continue
 		}
 
-		ctx := &CmdCtx{
-			p: ansi.NewPrinter(sh),
-
-			c:   cmd,
-			env: cmdEnv,
+		cmdCtx := context.WithValue(ctx, ctxKeyCmd, &cmdContext{
+			sh:   sh,
+			env:  cmdEnv,
+			desc: cmd.Desc,
+		})
+		for _, e := range sh.env {
+			name, value := ansi.Cut(e, '=')
+			cmdCtx = context.WithValue(cmdCtx, envKey(name), value)
 		}
 
-		if cmd.isShell {
-			cmd.sh.state = make(map[string]interface{})
-			if cmd.sh.init != nil {
-				sh.lastCmdErr = cmd.sh.init(ctx)
-				if sh.lastCmdErr != nil {
-					cmd.sh.state = nil
-					continue
-				}
-			}
+		if cmd.Init != nil {
+			sh.lastCmdErr = cmd.Init(cmdCtx, cmd.Exec)
+		} else {
+			sh.lastCmdErr = cmd.Exec(cmdCtx)
 		}
 
-		sh.lastCmdErr = cmd.Exec(ctx)
-		if cmd.isShell {
-			cmd.sh.state = nil
-		}
 		var exit exitErr
 		if errors.As(sh.lastCmdErr, &exit) {
 			sh.lastCmdErr = nil
 			return exit.error
 		}
+
 		var usage usageErr
 		if errors.As(sh.lastCmdErr, &usage) {
-			ctx.usage(usage.err)
 			if usage.err == nil {
 				sh.lastCmdErr = nil
+			} else {
+				sh.p.Fg(ansi.Red)
+				sh.p.Println(usage.err.Error())
 			}
-		}
-		if sh.lastCmdErr != nil {
+			usage.PrintUsage(sh.p)
+		} else if sh.lastCmdErr != nil {
 			sh.p.Fg(ansi.Red)
 			sh.p.Println(sh.lastCmdErr)
 		}

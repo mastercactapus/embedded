@@ -9,7 +9,7 @@ import (
 )
 
 func TestParseCommandEnv(t *testing.T) {
-	env, err := term.ParseCommandEnv("A=B foo -bar -baz=BAR -- foo -okay M=F", nil)
+	env, err := term.ParseCommandEnv("A=B foo -bar -baz=BAR -- foo -okay M=F")
 	require.NoError(t, err)
 
 	assert.Equal(t, "foo", env.Name)
@@ -26,7 +26,7 @@ func TestParseCommandEnv(t *testing.T) {
 	assert.Contains(t, env.Args, "M=F")
 	assert.Len(t, env.Args, 3)
 
-	env, err = term.ParseCommandEnv("foo -h", nil)
+	env, err = term.ParseCommandEnv("foo -h")
 	require.NoError(t, err)
 
 	assert.Equal(t, "foo", env.Name)
@@ -34,14 +34,14 @@ func TestParseCommandEnv(t *testing.T) {
 	assert.Len(t, env.Flags, 1)
 	assert.Len(t, env.Args, 0)
 
-	env, err = term.ParseCommandEnv("export FOO=bar", nil)
+	env, err = term.ParseCommandEnv("export FOO=bar")
 	require.NoError(t, err)
 
 	assert.Equal(t, "export", env.Name)
 	assert.Contains(t, env.Args, "FOO=bar")
 	assert.Len(t, env.Args, 1)
 
-	env, err = term.ParseCommandEnv("tx -d=0 -f", nil)
+	env, err = term.ParseCommandEnv("tx -d=0 -f")
 	require.NoError(t, err)
 
 	assert.Equal(t, "tx", env.Name)

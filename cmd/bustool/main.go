@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net"
 
@@ -18,7 +19,7 @@ func main() {
 			panic(err)
 		}
 
-		err = bustool.NewShell(conn, conn).Exec()
+		err = bustool.NewShell(conn, conn).Exec(context.Background())
 		if err != nil {
 			log.Println("ERROR:", err)
 		}

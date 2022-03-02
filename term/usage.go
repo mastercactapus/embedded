@@ -1,28 +1,30 @@
 package term
 
 import (
+	"io"
 	"strings"
 
 	"github.com/mastercactapus/embedded/term/ansi"
 )
 
-func (cmd *CmdCtx) usage(err error) {
-	cmd.addFlag(Flag{Name: "h", Desc: "Show this help message"}, "")
-	p := cmd.Printer()
-	if err != nil {
-		p.Fg(ansi.Red)
-		p.Println(err.Error())
-		p.Reset()
-	}
+func (fp *FlagParser) PrintUsage(w io.Writer) {
+	// cmd.addFlag(Flag{Name: "h", Desc: "Show this help message"}, "")
+	// p := cmd.Printer()
+	// if err != nil {
+	// 	p.Fg(ansi.Red)
+	// 	p.Println(err.Error())
+	// 	p.Reset()
+	// }
 
-	p.Println(cmd.c.Desc)
-	p.Println()
+	// p.Println(fp.c.Desc)
+	// p.Println()
 
-	p.Printf("Usage: %s", cmd.c.Name)
-	if len(cmd.flagInfo) > 0 {
+	p := ansi.NewPrinter(w)
+	p.Printf("Usage: %s", fp.cmd.Name)
+	if len(fp.flagInfo) > 0 {
 		p.Printf(" [flags]")
 	}
-	for _, a := range cmd.argInfo {
+	for _, a := range fp.argInfo {
 		switch {
 		case a.isSlice && a.Req:
 			p.Printf(" <%s ...>", a.Arg.Name)
@@ -37,9 +39,9 @@ func (cmd *CmdCtx) usage(err error) {
 	p.Println()
 	p.Println()
 
-	if len(cmd.examples) > 0 {
+	if len(fp.examples) > 0 {
 		p.Println("Examples:")
-		for _, ex := range cmd.examples {
+		for _, ex := range fp.examples {
 			p.Printf("    %s\n", ex.cmdline)
 			p.Printf("        %s\n", ex.details)
 		}
@@ -49,9 +51,9 @@ func (cmd *CmdCtx) usage(err error) {
 	var tb ansi.Table
 	tb.Pad = 4
 
-	if len(cmd.argInfo) > 0 {
+	if len(fp.argInfo) > 0 {
 		tb.AddLine("Arguments:")
-		for _, a := range cmd.argInfo {
+		for _, a := range fp.argInfo {
 			desc := a.Desc
 			if a.Req {
 				desc = "REQUIRED: " + desc
@@ -61,9 +63,9 @@ func (cmd *CmdCtx) usage(err error) {
 		tb.AddLine("")
 	}
 
-	if len(cmd.flagInfo) > 0 {
+	if len(fp.flagInfo) > 0 {
 		tb.AddLine("Flags:")
-		for _, f := range cmd.flagInfo {
+		for _, f := range fp.flagInfo {
 			env := f.Env
 			if env != "" {
 				env = "[$" + env + "]"

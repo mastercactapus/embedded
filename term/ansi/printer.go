@@ -11,6 +11,10 @@ type Printer struct {
 }
 
 func NewPrinter(w io.Writer) *Printer {
+	if ap, ok := w.(*Printer); ok {
+		return ap
+	}
+
 	return &Printer{w: w}
 }
 

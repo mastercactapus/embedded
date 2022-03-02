@@ -2,6 +2,7 @@ package term
 
 import (
 	"bufio"
+	"context"
 	"io"
 	"sort"
 
@@ -18,8 +19,6 @@ type Shell struct {
 	w *newliner
 	p *ansi.Printer
 
-	init CmdFunc
-
 	lastWByte byte
 
 	err error
@@ -30,8 +29,7 @@ type Shell struct {
 	shNames  []string
 	cmdNames []string
 
-	cmds  map[string]*cmdData
-	state map[string]interface{}
+	cmds map[string]*cmdData
 
 	env []string
 }
@@ -73,11 +71,13 @@ func NewShell(name, desc string, r io.Reader, w io.Writer) *Shell {
 
 type exitErr struct{ error }
 
-func launchSubShell(c *CmdCtx) error {
-	if err := c.Parse(); err != nil {
+func launchSubShell(ctx context.Context) error {
+	if err := Parse(ctx).Err(); err != nil {
 		return err
 	}
-	return c.c.sh.Exec()
+
+	cmd := ctx.Value(ctxKeyCmd).(*cmdContext)
+	return cmd.sh.Exec(ctx)
 }
 
 func (sh *Shell) NewSubShell(cmd Command) *Shell {
@@ -86,8 +86,6 @@ func (sh *Shell) NewSubShell(cmd Command) *Shell {
 	}
 
 	subSh := NewShell(cmd.Name, cmd.Desc, sh.r, sh.w)
-	subSh.parent = sh
-	subSh.init = cmd.Exec
 	cmd.Exec = launchSubShell
 
 	sh.cmds[cmd.Name] = &cmdData{Command: cmd, sh: subSh, isShell: true}
@@ -108,50 +106,50 @@ func (sh *Shell) AddCommand(cmd Command) {
 	sort.Strings(sh.cmdNames)
 }
 
-func (s *Shell) prompt(input string) {
-	defer s.w.Flush()
+func (sh *Shell) prompt(input string) {
+	defer sh.w.Flush()
 
-	s.p.ClearLine()
-	s.p.Reset()
-	s.p.Print(s.dir() + s.name)
+	sh.p.ClearLine()
+	sh.p.Reset()
+	sh.p.Print(sh.dir() + sh.name)
 
-	if s.lastCmdErr != nil {
-		s.p.Fg(ansi.Red)
-		s.p.Print(" [")
-		s.p.Font(ansi.Bold)
-		s.p.Print("ERR")
-		s.p.Font(ansi.Normal)
-		s.p.Fg(ansi.Red)
-		s.p.Print("]")
-		s.p.Reset()
+	if sh.lastCmdErr != nil {
+		sh.p.Fg(ansi.Red)
+		sh.p.Print(" [")
+		sh.p.Font(ansi.Bold)
+		sh.p.Print("ERR")
+		sh.p.Font(ansi.Normal)
+		sh.p.Fg(ansi.Red)
+		sh.p.Print("]")
+		sh.p.Reset()
 	}
 
-	s.p.Print("> " + input)
+	sh.p.Print("> " + input)
 }
 
-func (t *Shell) WriteByte(p byte) error {
-	if t.err != nil {
-		return t.err
+func (sh *Shell) WriteByte(p byte) error {
+	if sh.err != nil {
+		return sh.err
 	}
 	if p == 0 {
 		return nil
 	}
 
-	if p == '\n' && t.lastWByte != '\r' {
-		t.w.WriteByte('\r')
+	if p == '\n' && sh.lastWByte != '\r' {
+		sh.w.WriteByte('\r')
 	}
 
-	return t.w.WriteByte(p)
+	return sh.w.WriteByte(p)
 }
 
-func (t *Shell) Write(p []byte) (int, error) {
-	if t.err != nil {
-		return 0, t.err
+func (sh *Shell) Write(p []byte) (int, error) {
+	if sh.err != nil {
+		return 0, sh.err
 	}
 
 	for _, b := range p {
-		t.err = t.WriteByte(b)
+		sh.err = sh.WriteByte(b)
 	}
 
-	return len(p), t.err
+	return len(p), sh.err
 }

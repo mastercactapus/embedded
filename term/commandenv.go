@@ -9,10 +9,9 @@ type (
 	CommandEnv struct {
 		Name string
 
-		Flags     []string
-		Args      []string
-		LocalEnv  []string
-		GlobalEnv []string
+		Flags    []string
+		Args     []string
+		LocalEnv []string
 	}
 
 	Arg struct {
@@ -43,13 +42,13 @@ type (
 
 var ErrNoCommand = fmt.Errorf("no command")
 
-func ParseCommandEnv(input string, env []string) (*CommandEnv, error) {
+func ParseCommandEnv(input string) (*CommandEnv, error) {
 	args, err := SplitArgs(input)
 	if err != nil {
 		return nil, err
 	}
 
-	cmd := &CommandEnv{GlobalEnv: env}
+	cmd := &CommandEnv{}
 	for i, a := range args {
 		if strings.ContainsRune(a, '=') {
 			continue

@@ -1,6 +1,7 @@
 package bustool
 
 import (
+	"context"
 	"io"
 
 	"github.com/mastercactapus/embedded/term"
@@ -8,11 +9,11 @@ import (
 
 func NewShell(r io.Reader, w io.Writer) *term.Shell {
 	sh := term.NewShell("bustool", "Interact with various embedded devices.", r, w)
-	sh.AddCommand(term.Command{Name: "version", Desc: "Output version information.", Exec: func(c *term.CmdCtx) error {
-		if err := c.Parse(); err != nil {
+	sh.AddCommand(term.Command{Name: "version", Desc: "Output version information.", Exec: func(ctx context.Context) error {
+		if err := term.Parse(ctx).Err(); err != nil {
 			return err
 		}
-		c.Printer().Println("v0")
+		term.Printer(ctx).Println("v0")
 
 		return nil
 	}})
