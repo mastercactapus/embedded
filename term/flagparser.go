@@ -120,6 +120,10 @@ func (fp *FlagParser) addFlag(f Flag, typeName string) (value string, ok bool) {
 	if fp.err != nil {
 		return "", false
 	}
-	value, fp.err = fp.takeFlag(f)
+	var isSet bool
+	value, isSet, fp.err = fp.takeFlag(f)
+	if typeName == "bool" && !isSet {
+		return "", false
+	}
 	return value, fp.err == nil
 }

@@ -10,7 +10,7 @@ import (
 
 var ErrNotSet = fmt.Errorf("required but not set")
 
-func (fp *FlagParser) takeFlag(f Flag) (string, error) {
+func (fp *FlagParser) takeFlag(f Flag) (string, bool, error) {
 	fname := "-" + f.Name
 	prefix := fname + "="
 
@@ -19,10 +19,10 @@ func (fp *FlagParser) takeFlag(f Flag) (string, error) {
 		case strings.HasPrefix(a, prefix):
 			_, value := ansi.Cut(a, '=')
 			fp.cmd.Flags = append(fp.cmd.Flags[:i], fp.cmd.Flags[i+1:]...)
-			return value, nil
+			return value, true, nil
 		case a == fname:
 			fp.cmd.Flags = append(fp.cmd.Flags[:i], fp.cmd.Flags[i+1:]...)
-			return "", nil
+			return "", true, nil
 		}
 	}
 
@@ -32,36 +32,26 @@ func (fp *FlagParser) takeFlag(f Flag) (string, error) {
 		for _, v := range fp.cmd.LocalEnv {
 			if strings.HasPrefix(v, prefix) {
 				_, value = ansi.Cut(v, '=')
-				return value, nil
+				return value, true, nil
 			}
 		}
 		if fp.lookupEnv != nil {
 			value = fp.lookupEnv(f.Env)
 			if value != "" {
-				return value, nil
+				return value, true, nil
 			}
 		}
-
-		if f.Def != "" {
-			return f.Def, nil
-		}
-
-		if f.Req {
-			return "", fmt.Errorf("flag '%s': %w", fname, ErrNotSet)
-		}
-
-		return "", nil
 	}
 
 	if f.Def != "" {
-		return f.Def, nil
+		return f.Def, true, nil
 	}
 
 	if f.Req {
-		return "", fmt.Errorf("flag '%s': %w", fname, ErrNotSet)
+		return "", false, fmt.Errorf("flag '%s': %w", fname, ErrNotSet)
 	}
 
-	return "", nil
+	return "", false, nil
 }
 
 func (fp *FlagParser) FlagString(f Flag) string { value, _ := fp.addFlag(f, "string"); return value }
