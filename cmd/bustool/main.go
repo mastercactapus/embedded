@@ -19,7 +19,10 @@ func main() {
 			panic(err)
 		}
 
-		err = bustool.NewShell(conn, conn).Exec(context.Background())
+		sh := bustool.NewShell(conn, conn)
+		bustool.AddI2C(sh, nil, nil)
+
+		err = sh.Exec(context.Background())
 		if err != nil {
 			log.Println("ERROR:", err)
 		}

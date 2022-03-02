@@ -50,6 +50,10 @@ func (fp *FlagParser) Err() error {
 	return nil
 }
 
+func (fp *FlagParser) UsageError(format string, args ...interface{}) error {
+	return usageErr{fp, fmt.Errorf(format, args...)}
+}
+
 func (fp *FlagParser) Example(cmdline, details string) {
 	fp.examples = append(fp.examples, cmdExample{cmdline, details})
 }

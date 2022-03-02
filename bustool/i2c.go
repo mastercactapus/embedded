@@ -12,15 +12,23 @@ type ctxKey int
 
 const (
 	ctxKeyI2C ctxKey = iota
+	ctxKeyMem
 )
 
-func AddI2C(sh *term.Shell, sda, scl i2c.Pin) {
+func AddI2C(sh *term.Shell, sda, scl i2c.Pin) *term.Shell {
 	i2cSh := sh.NewSubShell(term.Command{Name: "i2c", Desc: "Interact with I2C devices.", Init: func(ctx context.Context, exec term.CmdFunc) error {
+		if err := term.Parse(ctx).Err(); err != nil {
+			return err
+		}
+
 		bus := i2c.New()
-		bus.Configure(i2c.Config{
+		err := bus.Configure(i2c.Config{
 			SDA: sda,
 			SCL: scl,
 		})
+		if err != nil {
+			// return err
+		}
 
 		return exec(context.WithValue(ctx, ctxKeyI2C, bus))
 	}})
@@ -28,6 +36,7 @@ func AddI2C(sh *term.Shell, sda, scl i2c.Pin) {
 	for _, c := range i2cCommands {
 		i2cSh.AddCommand(c)
 	}
+	return i2cSh
 }
 
 var i2cCommands = []term.Command{

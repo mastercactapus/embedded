@@ -149,7 +149,7 @@ func (sh *Shell) Exec(ctx context.Context) error {
 		}
 
 		cmdCtx := context.WithValue(ctx, ctxKeyCmd, &cmdContext{
-			sh:   sh,
+			sh:   cmd.sh,
 			env:  cmdEnv,
 			desc: cmd.Desc,
 		})
@@ -177,6 +177,10 @@ func (sh *Shell) Exec(ctx context.Context) error {
 			} else {
 				sh.p.Fg(ansi.Red)
 				sh.p.Println(usage.err.Error())
+			}
+			if cmd.Desc != "" {
+				sh.p.Println(cmd.Desc)
+				sh.p.Println()
 			}
 			usage.PrintUsage(sh.p)
 		} else if sh.lastCmdErr != nil {

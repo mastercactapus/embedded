@@ -16,8 +16,9 @@ func main() {
 	}
 
 	sh := bustool.NewShell(&fixReader{machine.Serial}, machine.Serial)
-	bustool.AddI2C(sh, i2cPin(machine.I2C0_SDA_PIN), i2cPin(machine.I2C0_SCL_PIN))
-	machine.LED.High()
+	i2cSh := bustool.AddI2C(sh, i2cPin(machine.I2C0_SDA_PIN), i2cPin(machine.I2C0_SCL_PIN))
+	bustool.AddMem(i2cSh)
+
 	err = sh.Exec(context.Background())
 	if err != nil {
 		panic(err)

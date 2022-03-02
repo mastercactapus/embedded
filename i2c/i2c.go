@@ -30,6 +30,9 @@ func (i2c *I2C) Configure(config Config) error {
 	if config.Baudrate == 0 {
 		config.Baudrate = 100e3
 	}
+	if i2c.sda == nil || i2c.scl == nil {
+		return errors.New("i2c: pins not configured")
+	}
 	i2c.sda = config.SDA
 	i2c.scl = config.SCL
 
