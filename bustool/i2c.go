@@ -103,13 +103,13 @@ var i2cCommands = []term.Command{
 		}
 
 		if len(str) > 0 && len(data) > 0 {
-			return term.UsageError("cannot specify both -s and data")
+			return f.UsageError("cannot specify both -s and data")
 		}
 		if len(str) > 0 {
 			data = []byte(str)
 		}
 		if len(data) == 0 {
-			return term.UsageError("data or -s required")
+			return f.UsageError("data or -s required")
 		}
 
 		bus := ctx.Value(ctxKeyI2C).(*i2c.I2C)

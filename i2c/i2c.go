@@ -1,8 +1,8 @@
 package i2c
 
 import (
+	"device"
 	"errors"
-	"time"
 )
 
 type Pin interface {
@@ -14,7 +14,8 @@ type Pin interface {
 
 type I2C struct {
 	sda, scl Pin
-	waitDur  time.Duration
+
+	waitQtrN int
 }
 
 func New() *I2C {
@@ -45,28 +46,13 @@ func (i2c *I2C) Configure(config Config) error {
 }
 
 func (i2c *I2C) SetBaudrate(baudrate uint32) {
-	i2c.waitDur = time.Second / time.Duration(baudrate) / 4
+	// TODO
 }
 
-func (i2c *I2C) waitHalf() {
-	time.Sleep(i2c.waitDur)
-	time.Sleep(i2c.waitDur)
-}
-
-func (i2c *I2C) waitQtr() {
-	time.Sleep(i2c.waitDur)
-}
-
-func (i2c *I2C) Start() {
-	// doubles as a STOP
-	// if SDA was low
-	i2c.clockUp()
-	i2c.waitHalf()
-	i2c.sda.PullupHigh()
-	i2c.waitHalf()
-	i2c.waitHalf()
-	i2c.sda.OutputLow()
-	i2c.waitHalf()
+func wait() {
+	for i := 0; i < 50; i++ {
+		device.Asm("nop")
+	}
 }
 
 // TODO: set timeout based on baud
@@ -134,29 +120,9 @@ func (i2c *I2C) ReadByte() (byte, error) {
 
 	i2c.writeBit(true)
 
+	wait()
+
 	return b, nil
-}
-
-func (i2c *I2C) readBit() bool {
-	i2c.scl.OutputLow()
-	i2c.waitHalf()
-	i2c.sda.PullupHigh()
-	i2c.clockUp()
-	i2c.waitQtr()
-	defer i2c.waitQtr()
-	return i2c.sda.Get()
-}
-
-func (i2c *I2C) writeBit(v bool) {
-	i2c.scl.OutputLow()
-	if v {
-		i2c.sda.PullupHigh()
-	} else {
-		i2c.sda.OutputLow()
-	}
-	i2c.waitHalf()
-	i2c.clockUp()
-	i2c.waitHalf()
 }
 
 func (i2c *I2C) WriteByte(b byte) error {
@@ -168,17 +134,52 @@ func (i2c *I2C) WriteByte(b byte) error {
 		return ErrNack
 	}
 
+	wait()
+
 	return nil
 }
 
 var ErrNack = errors.New("i2c: NACK")
 
+func (i2c *I2C) Start() {
+	i2c.clockUp()
+	wait()
+	i2c.sda.OutputLow()
+	wait()
+	i2c.scl.OutputLow()
+	wait()
+}
+
+func (i2c *I2C) writeBit(v bool) {
+	if v {
+		i2c.sda.PullupHigh()
+	} else {
+		i2c.sda.OutputLow()
+	}
+	wait()
+	i2c.clockUp()
+	wait()
+	i2c.scl.OutputLow()
+	wait()
+}
+
+func (i2c *I2C) readBit() (value bool) {
+	i2c.sda.PullupHigh()
+	wait()
+	i2c.clockUp()
+	wait()
+	value = i2c.sda.Get()
+	wait()
+	i2c.scl.OutputLow()
+	wait()
+	return value
+}
+
 func (i2c *I2C) Stop() {
 	i2c.sda.OutputLow()
-	i2c.scl.OutputLow()
-	i2c.waitHalf()
+	wait()
 	i2c.clockUp()
-	i2c.waitHalf()
+	wait()
 	i2c.sda.PullupHigh()
-	i2c.waitHalf()
+	wait()
 }

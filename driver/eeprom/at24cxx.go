@@ -4,14 +4,16 @@ import (
 	"fmt"
 	"io"
 	"time"
-
-	"tinygo.org/x/drivers"
 )
 
 const timedWriteCycleDelay = 10 * time.Millisecond
 
+type I2C interface {
+	Tx(addr uint16, w, r []byte) error
+}
+
 type Device struct {
-	i2c  drivers.I2C
+	i2c  I2C
 	addr uint8
 
 	maxLen  int
@@ -22,7 +24,7 @@ type Device struct {
 	wBuffer []byte
 }
 
-func NewAT24C01(i2c drivers.I2C, addr uint8) *Device {
+func NewAT24C01(i2c I2C, addr uint8) *Device {
 	return &Device{
 		i2c:     i2c,
 		addr:    addr,
@@ -32,7 +34,7 @@ func NewAT24C01(i2c drivers.I2C, addr uint8) *Device {
 	}
 }
 
-func NewAT24C02(i2c drivers.I2C, addr uint8) *Device {
+func NewAT24C02(i2c I2C, addr uint8) *Device {
 	return &Device{
 		i2c:     i2c,
 		addr:    addr,
@@ -42,7 +44,7 @@ func NewAT24C02(i2c drivers.I2C, addr uint8) *Device {
 	}
 }
 
-func NewAT24C04(i2c drivers.I2C, addr uint8) *Device {
+func NewAT24C04(i2c I2C, addr uint8) *Device {
 	return &Device{
 		i2c:     i2c,
 		addr:    addr,
@@ -52,7 +54,7 @@ func NewAT24C04(i2c drivers.I2C, addr uint8) *Device {
 	}
 }
 
-func NewAT24C08(i2c drivers.I2C, addr uint8) *Device {
+func NewAT24C08(i2c I2C, addr uint8) *Device {
 	return &Device{
 		i2c:     i2c,
 		addr:    addr,
@@ -62,7 +64,7 @@ func NewAT24C08(i2c drivers.I2C, addr uint8) *Device {
 	}
 }
 
-func NewAT24C16(i2c drivers.I2C, addr uint8) *Device {
+func NewAT24C16(i2c I2C, addr uint8) *Device {
 	return &Device{
 		i2c:     i2c,
 		addr:    addr,
@@ -72,7 +74,7 @@ func NewAT24C16(i2c drivers.I2C, addr uint8) *Device {
 	}
 }
 
-func NewAT24C32(i2c drivers.I2C, addr uint8) *Device {
+func NewAT24C32(i2c I2C, addr uint8) *Device {
 	return &Device{
 		i2c:     i2c,
 		addr:    addr,
@@ -82,7 +84,7 @@ func NewAT24C32(i2c drivers.I2C, addr uint8) *Device {
 	}
 }
 
-func NewAT24C64(i2c drivers.I2C, addr uint8) *Device {
+func NewAT24C64(i2c I2C, addr uint8) *Device {
 	return &Device{
 		i2c:     i2c,
 		addr:    addr,
@@ -207,7 +209,6 @@ func (d *Device) _write(p []byte) (n int, err error) {
 func (d *Device) Write(p []byte) (n int, err error) {
 	// can't fit, return ErrShortWrite
 	if d.pos+len(p) > d.maxLen {
-		println("short write", d.pos, d.maxLen, len(p), `"`+string(p)+`"`)
 		p = p[:d.maxLen-d.pos]
 		if len(p) == 0 {
 			return 0, io.ErrShortWrite

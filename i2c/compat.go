@@ -38,7 +38,7 @@ func (i2c *I2C) ReadRegister(addr, reg byte, p []byte) error {
 	return err
 }
 
-func (i2c *I2C) Tx(addr uint16, r, w []byte) error {
+func (i2c *I2C) Tx(addr uint16, w, r []byte) error {
 	i2c.Start()
 	defer i2c.Stop()
 

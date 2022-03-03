@@ -3,25 +3,23 @@ package bustool
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
-	"io"
 
 	"github.com/mastercactapus/embedded/driver/eeprom"
-	"github.com/mastercactapus/embedded/i2c"
 	"github.com/mastercactapus/embedded/term"
 )
 
 func AddMem(sh *term.Shell) *term.Shell {
 	memSh := sh.NewSubShell(term.Command{Name: "mem", Desc: "Interact with an AT24Cxx-compatible EEPROM device over I2C.", Init: func(ctx context.Context, exec term.CmdFunc) error {
 		f := term.Parse(ctx)
-		addr := f.FlagByte(term.Flag{Name: "d", Env: "DEVICE", Desc: "Device addresss.", Req: true})
-		mem := f.FlagInt(term.Flag{Name: "m", Desc: "Memory size in bits.", Req: true})
+		addr := f.FlagByte(term.Flag{Name: "d", Def: "0x50", Env: "DEVICE", Desc: "Device addresss.", Req: true})
+		mem := f.FlagInt(term.Flag{Name: "m", Def: "128", Desc: "Memory size in bits.", Req: true})
 		if f.Err() != nil {
 			return f.Err()
 		}
 
 		var dev *eeprom.Device
-		bus := ctx.Value(ctxKeyI2C).(*i2c.I2C)
+		bus := ctx.Value(ctxKeyI2C).(eeprom.I2C)
+
 		switch mem {
 		case 128:
 			dev = eeprom.NewAT24C01(bus, addr)
@@ -48,23 +46,46 @@ var memCommands = []term.Command{
 		}
 
 		mem := ctx.Value(ctxKeyMem).(*eeprom.Device)
+		if count == 0 {
+			count = mem.Size() - start
+		}
 
-		_, err := mem.Seek(int64(start), 0)
+		data := make([]byte, count)
+		_, err := mem.ReadAt(data, int64(start))
 		if err != nil {
-			return fmt.Errorf("seek: %w", err)
+			return err
 		}
 
-		r := io.Reader(mem)
-		if count > 0 {
-			r = io.LimitReader(r, int64(count))
+		term.Printer(ctx).Print(hex.Dump(data))
+		return nil
+	}},
+	{Name: "w", Desc: "Write device data.", Exec: func(ctx context.Context) error {
+		f := term.Parse(ctx)
+		start := f.FlagInt(term.Flag{Name: "p", Def: "0", Desc: "Position to start from.", Req: true})
+		str := f.FlagString(term.Flag{Name: "s", Env: "DATA", Desc: "Value to write."})
+		data := f.ArgByteN(term.Arg{Name: "data", Desc: "Value to write."})
+		if err := f.Err(); err != nil {
+			return err
 		}
 
-		wc := hex.Dumper(term.Printer(ctx))
-		_, err = io.Copy(wc, r)
+		if len(str) > 0 && len(data) > 0 {
+			return f.UsageError("cannot specify both -s and data")
+		}
+		if len(str) > 0 {
+			data = []byte(str)
+		}
+		if len(data) == 0 {
+			return f.UsageError("data or -s required")
+		}
+
+		mem := ctx.Value(ctxKeyMem).(*eeprom.Device)
+
+		_, err := mem.WriteAt(data, int64(start))
 		if err != nil {
-			return fmt.Errorf("read: %w", err)
+			println(err.Error())
+			return err
 		}
 
-		return wc.Close()
+		return nil
 	}},
 }

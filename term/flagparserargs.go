@@ -1,7 +1,20 @@
 package term
 
-import "strconv"
+import (
+	"strconv"
+	"time"
+)
 
+func (fp *FlagParser) ArgDuration(a Arg) time.Duration {
+	value, ok := fp.addArg(a, "duration")
+	if !ok {
+		return 0
+	}
+	i, err := time.ParseDuration(value)
+	fp.setErr(a.valueError(err))
+
+	return i
+}
 func (fp *FlagParser) ArgString(a Arg) string { value, _ := fp.addArg(a, "string"); return value }
 func (fp *FlagParser) ArgStringN(a Arg) []string {
 	value, _ := fp.addArgSlice(a, "string")
