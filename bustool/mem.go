@@ -3,6 +3,7 @@ package bustool
 import (
 	"context"
 	"encoding/hex"
+	"math/rand"
 
 	"github.com/mastercactapus/embedded/driver/eeprom"
 	"github.com/mastercactapus/embedded/term"
@@ -94,6 +95,8 @@ var memCommands = []term.Command{
 		f := term.Parse(ctx)
 		start := f.FlagInt(term.Flag{Name: "p", Def: "0", Desc: "Position to start from.", Req: true})
 		count := f.FlagInt(term.Flag{Name: "n", Def: "0", Desc: "Number of bytes to wipe, if zero clear to end."})
+		value := f.FlagByte(term.Flag{Name: "v", Def: "0xff", Desc: "Value to write."})
+		rnd := f.FlagBool(term.Flag{Name: "random", Desc: "Fill with random data."})
 		if err := f.Err(); err != nil {
 			return err
 		}
@@ -109,7 +112,11 @@ var memCommands = []term.Command{
 
 		data := make([]byte, count)
 		for i := range data {
-			data[i] = 0xff
+			if rnd {
+				data[i] = byte(rand.Intn(256))
+			} else {
+				data[i] = value
+			}
 		}
 
 		_, err := mem.WriteAt(data, int64(start))
