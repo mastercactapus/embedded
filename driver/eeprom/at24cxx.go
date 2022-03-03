@@ -141,22 +141,17 @@ func (d *Device) Read(p []byte) (int, error) {
 		}
 	}
 
-	if len(p) > d.pageLen {
-		p = p[:d.pageLen]
-	}
-
-	newPos := d.pos + len(p)
-	if newPos > d.maxLen {
+	if len(p) > d.maxLen-d.pos {
 		p = p[:d.maxLen-d.pos]
 	}
 
 	err := d.i2c.Tx(uint16(d.addr), nil, p)
 	if err != nil {
-		d.devPos = -1
+		d.devPos = 0
 		return 0, err
 	}
 
-	d.pos = newPos
+	d.pos = d.pos + len(p)
 	d.devPos = d.pos
 	return len(p), nil
 }

@@ -137,4 +137,38 @@ var i2cCommands = []term.Command{
 		term.Printer(ctx).Println(hex.Dump(r))
 		return nil
 	}},
+
+	{Name: "tx", Desc: "Read/write to an I2C device.", Exec: func(ctx context.Context) error {
+		f := term.Parse(ctx)
+		addr := f.FlagByte(term.Flag{Name: "d", Env: "DEVICE", Desc: "Device addresss.", Req: true})
+		count := f.FlagInt(term.Flag{Name: "n", Def: "0", Desc: "Number of bytes to read."})
+		str := f.FlagString(term.Flag{Name: "s", Env: "DATA", Desc: "Value to write."})
+		data := f.ArgByteN(term.Arg{Name: "data", Desc: "Value to write."})
+		if err := f.Err(); err != nil {
+			return err
+		}
+
+		if len(str) > 0 && len(data) > 0 {
+			return f.UsageError("cannot specify both -s and data")
+		}
+		if len(str) > 0 {
+			data = []byte(str)
+		}
+
+		bus := ctx.Value(ctxKeyI2C).(*i2c.I2C)
+
+		var r []byte
+		if count > 0 {
+			r = make([]byte, count)
+		}
+		err := bus.Tx(uint16(addr), data, r)
+		if err != nil {
+			return err
+		}
+
+		if count > 0 {
+			term.Printer(ctx).Println(hex.Dump(r))
+		}
+		return nil
+	}},
 }
