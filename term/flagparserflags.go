@@ -76,9 +76,9 @@ func (fp *FlagParser) FlagInt(f Flag) int {
 	if !ok {
 		return 0
 	}
-	i, err := strconv.Atoi(value)
+	i, err := strconv.ParseInt(value, 0, 0)
 	fp.setErr(f.valueError(err))
-	return i
+	return int(i)
 }
 
 func (fp *FlagParser) FlagInt8(f Flag) int8 {

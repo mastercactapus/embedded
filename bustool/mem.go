@@ -49,6 +49,9 @@ var memCommands = []term.Command{
 		if count == 0 {
 			count = mem.Size() - start
 		}
+		if count <= 0 {
+			return nil
+		}
 
 		data := make([]byte, count)
 		_, err := mem.ReadAt(data, int64(start))
@@ -82,7 +85,35 @@ var memCommands = []term.Command{
 
 		_, err := mem.WriteAt(data, int64(start))
 		if err != nil {
-			println(err.Error())
+			return err
+		}
+
+		return nil
+	}},
+	{Name: "format", Desc: "Clear all data.", Exec: func(ctx context.Context) error {
+		f := term.Parse(ctx)
+		start := f.FlagInt(term.Flag{Name: "p", Def: "0", Desc: "Position to start from.", Req: true})
+		count := f.FlagInt(term.Flag{Name: "n", Def: "0", Desc: "Number of bytes to wipe, if zero clear to end."})
+		if err := f.Err(); err != nil {
+			return err
+		}
+
+		mem := ctx.Value(ctxKeyMem).(*eeprom.Device)
+
+		if count == 0 {
+			count = mem.Size() - start
+		}
+		if count <= 0 {
+			return nil
+		}
+
+		data := make([]byte, count)
+		for i := range data {
+			data[i] = 0xff
+		}
+
+		_, err := mem.WriteAt(data, int64(start))
+		if err != nil {
 			return err
 		}
 
