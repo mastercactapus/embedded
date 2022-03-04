@@ -12,7 +12,7 @@ import (
 func AddIO(sh *term.Shell) *term.Shell {
 	ioSh := sh.NewSubShell(term.Command{Name: "io", Desc: "Interact with IO expansion chips over I2C.", Init: func(ctx context.Context, exec term.CmdFunc) error {
 		f := term.Flags(ctx)
-		addr := f.Byte(term.Flag{Name: "addr", Short: 'd', Def: "0x21", Env: "DEV", Desc: "Device addresss.", Req: true})
+		addr := f.Byte(term.Flag{Name: "addr", Short: 'd', Def: "0x20", Env: "DEV", Desc: "Device addresss.", Req: true})
 		pinN := f.Int(term.Flag{Name: "pins", Short: 'p', Def: "8", Desc: "Pin count.", Req: true})
 		if err := f.Parse(); err != nil {
 			return err
