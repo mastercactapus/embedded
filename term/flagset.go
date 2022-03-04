@@ -193,7 +193,7 @@ func (f flagVal) Set(s string, opt getopt.Option) error {
 				continue
 			}
 			if s[0] == 's' {
-				bytes = append(bytes, []byte(s)...)
+				bytes = append(bytes, []byte(s[1:])...)
 				continue
 			}
 			b, err := strconv.ParseUint(s, 0, 8)
