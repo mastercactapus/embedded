@@ -124,5 +124,6 @@ func nextString(sr *strings.Reader, quote rune) (string, error) {
 			}
 			return s, nil
 		}
+		b.WriteRune(r)
 	}
 }

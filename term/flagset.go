@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 
 	"github.com/pborman/getopt/v2"
 )
@@ -30,8 +31,15 @@ type FlagSet struct {
 	set *getopt.Set
 	env func(string) (string, bool)
 
+	args []argInfo
+
 	examples []flagExample
 	showHelp bool
+}
+
+type argInfo struct {
+	Arg
+	v interface{}
 }
 
 type flagExample struct {
@@ -79,6 +87,17 @@ func (fs *FlagSet) Parse() error {
 	if fs.showHelp {
 		return usageErr{fs: fs}
 	}
+
+	// TODO: check for required args
+	for i, arg := range fs.args {
+		switch v := arg.v.(type) {
+		case *[]string:
+			*v = fs.set.Args()
+		case *[]byte:
+			*v = []byte(fs.set.Arg(i))
+		}
+	}
+
 	return nil
 }
 
@@ -105,10 +124,14 @@ func (fs *FlagSet) flag(f Flag, v getopt.Value) getopt.Option {
 	return opt
 }
 
-func (fs *FlagSet) BinaryArgs(a Arg) *[]byte {
-	var b []byte
+func (fs *FlagSet) Args() []string {
+	return fs.set.Args()
+}
 
-	return &b
+func (fs *FlagSet) Bytes(f Flag) *[]byte {
+	var v []byte
+	fs.flag(f, flagVal{&v})
+	return &v
 }
 
 func (fs *FlagSet) String(f Flag) *string {
@@ -148,7 +171,13 @@ func (f flagVal) String() string {
 	case *int:
 		return strconv.Itoa(*v)
 	case *byte:
-		return fmt.Sprintf("0x%x", *v)
+		return fmt.Sprintf("0x%02x", *v)
+	case *[]byte:
+		var s []string
+		for _, b := range *v {
+			s = append(s, fmt.Sprintf("0x%02x", b))
+		}
+		return strings.Join(s, ",")
 	default:
 		panic(fmt.Sprintf("unsupported flag type %T", v))
 	}
@@ -156,6 +185,24 @@ func (f flagVal) String() string {
 
 func (f flagVal) Set(s string, opt getopt.Option) error {
 	switch v := f.value.(type) {
+	case *[]byte:
+		bits := strings.Split(s, ",")
+		bytes := make([]byte, 0, len(bits))
+		for _, s := range bits {
+			if len(s) == 0 {
+				continue
+			}
+			if s[0] == 's' {
+				bytes = append(bytes, []byte(s)...)
+				continue
+			}
+			b, err := strconv.ParseUint(s, 0, 8)
+			if err != nil {
+				return err
+			}
+			bytes = append(bytes, byte(b))
+		}
+		*v = bytes
 	case *string:
 		*v = s
 	case *bool:

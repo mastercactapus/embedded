@@ -67,7 +67,7 @@ var memCommands = []term.Command{
 	{Name: "w", Desc: "Write device data.", Exec: func(ctx context.Context) error {
 		f := term.Flags(ctx)
 		start := f.Int(term.Flag{Name: "p", Def: "0", Desc: "Position to start from.", Req: true})
-		data := f.BinaryArgs(term.Arg{Name: "data", Desc: "Value to write."})
+		data := f.Bytes(term.Flag{Name: "data", Short: 'b', Desc: "Write bytes (comma separated).", Req: true})
 		if err := f.Parse(); err != nil {
 			return err
 		}

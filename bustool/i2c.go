@@ -96,7 +96,7 @@ var i2cCommands = []term.Command{
 		f := term.Flags(ctx)
 		addr := f.Byte(term.Flag{Name: "dev", Short: 'd', Env: "DEV", Desc: "Device addresss.", Req: true})
 		reg := f.Byte(term.Flag{Name: "reg", Short: 'r', Def: "0", Env: "REG", Desc: "Register address."})
-		data := f.BinaryArgs(term.Arg{Name: "data", Desc: "Write bytes (comma separated).", Req: true})
+		data := f.Bytes(term.Flag{Name: "data", Short: 'b', Desc: "Write bytes (comma separated).", Req: true})
 		if err := f.Parse(); err != nil {
 			return err
 		}
@@ -130,7 +130,7 @@ var i2cCommands = []term.Command{
 		f := term.Flags(ctx)
 		addr := f.Byte(term.Flag{Name: "dev", Short: 'd', Env: "DEV", Desc: "Device addresss.", Req: true})
 		count := f.Int(term.Flag{Name: "n", Def: "0", Desc: "Number of bytes to read."})
-		data := f.BinaryArgs(term.Arg{Name: "data", Desc: "Data to write.", Req: true})
+		data := f.Bytes(term.Flag{Name: "data", Short: 'b', Desc: "Write bytes (comma separated)."})
 		if err := f.Parse(); err != nil {
 			return err
 		}

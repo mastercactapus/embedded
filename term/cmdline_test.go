@@ -21,4 +21,10 @@ func TestParseCmdLine(t *testing.T) {
 	assert.Len(t, cmd.Env, 1)
 	assert.Equal(t, "test", cmd.Args[0])
 	assert.Equal(t, "foo=bar", cmd.Env[0])
+
+	cmd, err = term.ParseCmdLine(`foo "test\x77" `)
+	require.NoError(t, err)
+	assert.Len(t, cmd.Args, 2)
+	assert.Equal(t, "foo", cmd.Args[0])
+	assert.Equal(t, "test\x77", cmd.Args[1])
 }
