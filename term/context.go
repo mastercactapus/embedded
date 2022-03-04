@@ -50,9 +50,5 @@ func Flags(ctx context.Context) *FlagSet {
 		panic("Parse called but no command context")
 	}
 
-	if cmd.fs == nil {
-		cmd.fs = NewFlagSet(cmd.CmdLine, cmd.env.Get)
-	}
-
 	return cmd.fs
 }

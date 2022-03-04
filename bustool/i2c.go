@@ -13,6 +13,7 @@ type ctxKey int
 const (
 	ctxKeyI2C ctxKey = iota
 	ctxKeyMem
+	ctxKeyIO
 )
 
 func AddI2C(sh *term.Shell, sda, scl i2c.Pin) *term.Shell {

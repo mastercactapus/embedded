@@ -13,6 +13,7 @@ func main() {
 	sh := bustool.NewShell(os.Stdin, os.Stdout)
 	i2cSh := bustool.AddI2C(sh, nilPin(false), nilPin(true))
 	bustool.AddMem(i2cSh)
+	bustool.AddIO(i2cSh)
 
 	s, err := terminal.MakeRaw(0)
 	if err != nil {
