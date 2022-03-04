@@ -43,7 +43,7 @@ func (i2c *I2C) Tx(addr uint16, w, r []byte) error {
 	defer i2c.Stop()
 
 	if len(w) > 0 {
-		if err := i2c.WriteByte(byte(addr << 1)); err != nil {
+		if err := i2c.writeAddress(addr, modeWrite); err != nil {
 			return err
 		}
 
@@ -57,7 +57,7 @@ func (i2c *I2C) Tx(addr uint16, w, r []byte) error {
 			// repeated start
 			i2c.Start()
 		}
-		if err := i2c.WriteByte(byte(addr<<1) | 1); err != nil {
+		if err := i2c.writeAddress(addr, modeRead); err != nil {
 			return err
 		}
 
