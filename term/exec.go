@@ -131,10 +131,14 @@ func (sh *Shell) Exec(ctx context.Context) error {
 		history = append(history, string(input))
 		histIndex = len(history)
 
-		cmdEnv, err := ParseCommandEnv(string(input))
+		cmdLine, err := ParseCmdLine(string(input))
+		if err != nil {
+			sh.p.Println(err)
+			continue
+		}
 		input = input[:0]
 		pos = 0
-		if errors.Is(err, ErrNoCommand) {
+		if len(cmdLine.Args) == 0 {
 			continue
 		}
 		if err != nil {
@@ -142,21 +146,19 @@ func (sh *Shell) Exec(ctx context.Context) error {
 			continue
 		}
 
-		cmd := sh.cmds[cmdEnv.Name]
+		cmd := sh.cmds[cmdLine.Args[0]]
 		if cmd == nil {
-			sh.p.Println("Unknown command: '" + cmdEnv.Name + "' try 'help'.")
+			sh.p.Println("Unknown command: '" + cmdLine.Args[0] + "' try 'help'.")
 			continue
 		}
 
 		cmdCtx := context.WithValue(ctx, ctxKeyCmd, &cmdContext{
-			sh:   cmd.sh,
-			env:  cmdEnv,
-			desc: cmd.Desc,
+			sh:      cmd.sh,
+			CmdLine: cmdLine,
+			desc:    cmd.Desc,
+			env:     sh.env,
+			fs:      NewFlagSet(cmdLine, sh.env.Get),
 		})
-		for _, e := range sh.env {
-			name, value := ansi.Cut(e, '=')
-			cmdCtx = context.WithValue(cmdCtx, envKey(name), value)
-		}
 
 		if cmd.Init != nil {
 			sh.lastCmdErr = cmd.Init(cmdCtx, cmd.Exec)

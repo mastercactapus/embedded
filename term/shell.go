@@ -31,7 +31,7 @@ type Shell struct {
 
 	cmds map[string]*cmdData
 
-	env []string
+	env *Env
 }
 
 func (sh *Shell) dir() string {
@@ -58,6 +58,7 @@ func NewShell(name, desc string, r io.Reader, w io.Writer) *Shell {
 		r:    bufio.NewReader(r),
 		w:    nl,
 		cmds: make(map[string]*cmdData),
+		env:  NewEnv(),
 	}
 	sh.p = ansi.NewPrinter(sh.w)
 
@@ -72,7 +73,7 @@ func NewShell(name, desc string, r io.Reader, w io.Writer) *Shell {
 type exitErr struct{ error }
 
 func launchSubShell(ctx context.Context) error {
-	if err := Parse(ctx).Err(); err != nil {
+	if err := Flags(ctx).Parse(); err != nil {
 		return err
 	}
 
@@ -87,6 +88,7 @@ func (sh *Shell) NewSubShell(cmd Command) *Shell {
 
 	subSh := NewShell(cmd.Name, cmd.Desc, sh.r, sh.w)
 	subSh.parent = sh
+	subSh.env.SetParent(sh.env)
 	cmd.Exec = launchSubShell
 
 	sh.cmds[cmd.Name] = &cmdData{Command: cmd, sh: subSh, isShell: true}

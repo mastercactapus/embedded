@@ -17,7 +17,7 @@ const (
 
 func AddI2C(sh *term.Shell, sda, scl i2c.Pin) *term.Shell {
 	i2cSh := sh.NewSubShell(term.Command{Name: "i2c", Desc: "Interact with I2C devices.", Init: func(ctx context.Context, exec term.CmdFunc) error {
-		if err := term.Parse(ctx).Err(); err != nil {
+		if err := term.Flags(ctx).Parse(); err != nil {
 			return err
 		}
 
@@ -41,24 +41,24 @@ func AddI2C(sh *term.Shell, sda, scl i2c.Pin) *term.Shell {
 
 var i2cCommands = []term.Command{
 	{Name: "ping", Desc: "Ping a device.", Exec: func(ctx context.Context) error {
-		f := term.Parse(ctx)
-		addr := f.FlagByte(term.Flag{Name: "d", Env: "DEVICE", Desc: "Device addresss.", Req: true})
-		write := f.FlagBool(term.Flag{Name: "w", Desc: "Ping the write address instead."})
-		if err := f.Err(); err != nil {
+		f := term.Flags(ctx)
+		addr := f.Byte(term.Flag{Name: "dev", Short: 'd', Env: "DEV", Desc: "Device addresss.", Req: true})
+		write := f.Bool(term.Flag{Short: 'w', Desc: "Ping the write address instead."})
+		if err := f.Parse(); err != nil {
 			return err
 		}
 
 		bus := ctx.Value(ctxKeyI2C).(*i2c.I2C)
 
-		if write {
-			return bus.PingW(addr)
+		if *write {
+			return bus.PingW(*addr)
 		}
 
-		return bus.Ping(addr)
+		return bus.Ping(*addr)
 	}},
 
 	{Name: "scan", Desc: "Scan for devices.", Exec: func(ctx context.Context) error {
-		if err := term.Parse(ctx).Err(); err != nil {
+		if err := term.Flags(ctx).Parse(); err != nil {
 			return err
 		}
 
@@ -93,43 +93,31 @@ var i2cCommands = []term.Command{
 	}},
 
 	{Name: "w", Desc: "Write to an I2C device register.", Exec: func(ctx context.Context) error {
-		f := term.Parse(ctx)
-		addr := f.FlagByte(term.Flag{Name: "d", Env: "DEVICE", Desc: "Device addresss.", Req: true})
-		reg := f.FlagByte(term.Flag{Name: "r", Def: "0", Env: "REGISTER", Desc: "Register address."})
-		str := f.FlagString(term.Flag{Name: "s", Env: "DATA", Desc: "Value to write."})
-		data := f.ArgByteN(term.Arg{Name: "data", Desc: "Value to write."})
-		if err := f.Err(); err != nil {
+		f := term.Flags(ctx)
+		addr := f.Byte(term.Flag{Name: "dev", Short: 'd', Env: "DEV", Desc: "Device addresss.", Req: true})
+		reg := f.Byte(term.Flag{Name: "reg", Short: 'r', Def: "0", Env: "REG", Desc: "Register address."})
+		data := f.BinaryArgs(term.Arg{Name: "data", Desc: "Write bytes (comma separated).", Req: true})
+		if err := f.Parse(); err != nil {
 			return err
 		}
 
-		if len(str) > 0 && len(data) > 0 {
-			return f.UsageError("cannot specify both -s and data")
-		}
-		if len(str) > 0 {
-			data = []byte(str)
-		}
-		if len(data) == 0 {
-			return f.UsageError("data or -s required")
-		}
-
 		bus := ctx.Value(ctxKeyI2C).(*i2c.I2C)
-
-		return bus.WriteRegister(addr, reg, data)
+		return bus.WriteRegister(*addr, *reg, *data)
 	}},
 
 	{Name: "r", Desc: "Read from an I2C device register.", Exec: func(ctx context.Context) error {
-		f := term.Parse(ctx)
-		addr := f.FlagByte(term.Flag{Name: "d", Env: "DEVICE", Desc: "Device addresss.", Req: true})
-		reg := f.FlagByte(term.Flag{Name: "r", Def: "0", Env: "REGISTER", Desc: "Register address.", Req: true})
-		count := f.FlagInt(term.Flag{Name: "n", Def: "0", Desc: "Number of bytes to read."})
-		if err := f.Err(); err != nil {
+		f := term.Flags(ctx)
+		addr := f.Byte(term.Flag{Name: "dev", Short: 'd', Env: "DEV", Desc: "Device addresss.", Req: true})
+		reg := f.Byte(term.Flag{Name: "reg", Short: 'r', Def: "0", Env: "REG", Desc: "Register address."})
+		count := f.Int(term.Flag{Name: "n", Def: "0", Desc: "Number of bytes to read."})
+		if err := f.Parse(); err != nil {
 			return err
 		}
 
 		bus := ctx.Value(ctxKeyI2C).(*i2c.I2C)
 
-		r := make([]byte, count)
-		err := bus.ReadRegister(addr, reg, r)
+		r := make([]byte, *count)
+		err := bus.ReadRegister(*addr, *reg, r)
 		if err != nil {
 			return err
 		}
@@ -139,34 +127,26 @@ var i2cCommands = []term.Command{
 	}},
 
 	{Name: "tx", Desc: "Read/write to an I2C device.", Exec: func(ctx context.Context) error {
-		f := term.Parse(ctx)
-		addr := f.FlagByte(term.Flag{Name: "d", Env: "DEVICE", Desc: "Device addresss.", Req: true})
-		count := f.FlagInt(term.Flag{Name: "n", Def: "0", Desc: "Number of bytes to read."})
-		str := f.FlagString(term.Flag{Name: "s", Env: "DATA", Desc: "Value to write."})
-		data := f.ArgByteN(term.Arg{Name: "data", Desc: "Value to write."})
-		if err := f.Err(); err != nil {
+		f := term.Flags(ctx)
+		addr := f.Byte(term.Flag{Name: "dev", Short: 'd', Env: "DEV", Desc: "Device addresss.", Req: true})
+		count := f.Int(term.Flag{Name: "n", Def: "0", Desc: "Number of bytes to read."})
+		data := f.BinaryArgs(term.Arg{Name: "data", Desc: "Data to write.", Req: true})
+		if err := f.Parse(); err != nil {
 			return err
-		}
-
-		if len(str) > 0 && len(data) > 0 {
-			return f.UsageError("cannot specify both -s and data")
-		}
-		if len(str) > 0 {
-			data = []byte(str)
 		}
 
 		bus := ctx.Value(ctxKeyI2C).(*i2c.I2C)
 
 		var r []byte
-		if count > 0 {
-			r = make([]byte, count)
+		if *count > 0 {
+			r = make([]byte, *count)
 		}
-		err := bus.Tx(uint16(addr), data, r)
+		err := bus.Tx(uint16(*addr), *data, r)
 		if err != nil {
 			return err
 		}
 
-		if count > 0 {
+		if *count > 0 {
 			term.Printer(ctx).Println(hex.Dump(r))
 		}
 		return nil

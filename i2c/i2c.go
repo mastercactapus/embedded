@@ -1,7 +1,6 @@
 package i2c
 
 import (
-	"device"
 	"errors"
 )
 
@@ -47,12 +46,6 @@ func (i2c *I2C) Configure(config Config) error {
 
 func (i2c *I2C) SetBaudrate(baudrate uint32) {
 	// TODO
-}
-
-func wait() {
-	for i := 0; i < 50; i++ {
-		device.Asm("nop")
-	}
 }
 
 // TODO: set timeout based on baud

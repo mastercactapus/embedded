@@ -10,7 +10,7 @@ import (
 func NewShell(r io.Reader, w io.Writer) *term.Shell {
 	sh := term.NewShell("bustool", "Interact with various embedded devices.", r, w)
 	sh.AddCommand(term.Command{Name: "version", Desc: "Output version information.", Exec: func(ctx context.Context) error {
-		if err := term.Parse(ctx).Err(); err != nil {
+		if err := term.Flags(ctx).Parse(); err != nil {
 			return err
 		}
 		term.Printer(ctx).Println("v0")

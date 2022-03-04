@@ -16,10 +16,11 @@ const (
 )
 
 type cmdContext struct {
-	sh   *Shell
-	env  *CommandEnv
+	sh *Shell
+	*CmdLine
 	desc string
-	fp   *FlagParser
+	fs   *FlagSet
+	env  *Env
 }
 
 // Printer will return the printer associated with the current context.
@@ -32,8 +33,8 @@ func Printer(ctx context.Context) *ansi.Printer {
 	return cmd.sh.p
 }
 
-// env will return the value of the environment variable with the given name.
-func env(ctx context.Context, name string) string {
+// getEnv will return the value of the environment variable with the given name.
+func getEnv(ctx context.Context, name string) string {
 	val, _ := ctx.Value(envKey(name)).(string)
 	return val
 }
@@ -43,16 +44,15 @@ func withEnv(ctx context.Context, name, val string) context.Context {
 	return context.WithValue(ctx, envKey(name), val)
 }
 
-func Parse(ctx context.Context) *FlagParser {
+func Flags(ctx context.Context) *FlagSet {
 	cmd, ok := ctx.Value(ctxKeyCmd).(*cmdContext)
 	if !ok {
 		panic("Parse called but no command context")
 	}
-	if cmd.fp == nil {
-		cmd.fp = NewFlagParser(cmd.env, func(name string) string {
-			return env(ctx, name)
-		})
+
+	if cmd.fs == nil {
+		cmd.fs = NewFlagSet(cmd.CmdLine, cmd.env.Get)
 	}
 
-	return cmd.fp
+	return cmd.fs
 }

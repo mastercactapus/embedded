@@ -3,30 +3,25 @@ package main
 import (
 	"context"
 	"log"
-	"net"
+	"os"
 
 	"github.com/mastercactapus/embedded/bustool"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 func main() {
-	n, err := net.Listen("tcp", ":8080")
+	sh := bustool.NewShell(os.Stdin, os.Stdout)
+	i2cSh := bustool.AddI2C(sh, nilPin(false), nilPin(true))
+	bustool.AddMem(i2cSh)
+
+	s, err := terminal.MakeRaw(0)
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
-	for {
-		conn, err := n.Accept()
-		if err != nil {
-			panic(err)
-		}
+	defer terminal.Restore(0, s)
 
-		sh := bustool.NewShell(conn, conn)
-		i2cSh := bustool.AddI2C(sh, nilPin(false), nilPin(true))
-		bustool.AddMem(i2cSh)
-
-		err = sh.Exec(context.Background())
-		if err != nil {
-			log.Println("ERROR:", err)
-		}
-		conn.Close()
+	err = sh.Exec(context.Background())
+	if err != nil {
+		log.Fatal(err)
 	}
 }

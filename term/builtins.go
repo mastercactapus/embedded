@@ -10,7 +10,7 @@ import (
 
 var builtins = []Command{
 	{"help", "Print this help message.", func(ctx context.Context) error {
-		if err := Parse(ctx).Err(); err != nil {
+		if err := Flags(ctx).Parse(); err != nil {
 			return err
 		}
 		p := Printer(ctx)
@@ -56,7 +56,7 @@ var builtins = []Command{
 	}, nil},
 
 	{"clear", "Clear the screen.", func(ctx context.Context) error {
-		if err := Parse(ctx).Err(); err != nil {
+		if err := Flags(ctx).Parse(); err != nil {
 			return err
 		}
 
@@ -65,71 +65,63 @@ var builtins = []Command{
 	}, nil},
 
 	{"export", "Export envronment variables.", func(ctx context.Context) error {
-		f := Parse(ctx)
+		f := Flags(ctx)
+		f.SetHelpParameters("[name=[value]] ...]")
 		f.Example("export FOO=1", "Set the FOO variable to 1.")
 		f.Example("export FOO=", "Clear the FOO variable.")
-		flags := f.ArgStringN(Arg{Name: "ENV", Desc: "KEY=value pairs of env variables to set.", Req: true})
-		if err := f.Err(); err != nil {
+		unset := f.Bool(Flag{Short: 'n', Desc: "Remove variables from the environment."})
+		if err := f.Parse(); err != nil {
 			return err
 		}
 
-		sh := ctx.Value(ctxKeyCmd).(*cmdContext).sh
-
-		toSet := flags[:0]
-		for _, flag := range flags {
-			name, value := ansi.Cut(flag, '=')
-			if value != "" {
-				toSet = append(toSet, flag)
+		// TODO: usage and parsing export Args
+		cmd := ctx.Value(ctxKeyCmd).(*cmdContext)
+		if *unset {
+			for _, arg := range f.set.Args() {
+				name, _ := ansi.Cut(arg, '=')
+				cmd.env.Unset(name)
 			}
-			prefix := name + "="
-			for i, pair := range sh.env {
-				if !strings.HasPrefix(pair, prefix) {
-					continue
-				}
-				// remove the old one
-				sh.env = append(sh.env[:i], sh.env[i+1:]...)
-				break
-			}
+			return nil
 		}
 
-		sh.env = append(sh.env, toSet...)
+		for _, arg := range f.set.Args() {
+			if !strings.Contains(arg, "=") {
+				val, ok := cmd.env.Get(arg)
+				if ok {
+					cmd.env.Set(arg, val)
+				}
+				continue
+			}
+			cmd.env.Set(ansi.Cut(arg, '='))
+		}
 
 		return nil
 	}, nil},
 
 	{"env", "Print shell environment values.", func(ctx context.Context) error {
-		if err := Parse(ctx).Err(); err != nil {
+		if err := Flags(ctx).Parse(); err != nil {
 			return err
 		}
 
 		cmd := ctx.Value(ctxKeyCmd).(*cmdContext)
 		p := Printer(ctx)
-		for _, pair := range cmd.sh.env {
-			p.Println(pair)
+		for _, key := range cmd.env.List() {
+			val, _ := cmd.env.Get(key)
+			p.Println(key + "=" + val)
 		}
 
-		return nil
-	}, nil},
-
-	{"reset", "Reset all environment variables.", func(ctx context.Context) error {
-		if err := Parse(ctx).Err(); err != nil {
-			return err
-		}
-
-		cmd := ctx.Value(ctxKeyCmd).(*cmdContext)
-		cmd.sh.env = cmd.sh.env[:0]
 		return nil
 	}, nil},
 
 	{"exit", "Exits the current shell.", func(ctx context.Context) error {
-		f := Parse(ctx)
-		errMsg := f.ArgString(Arg{Name: "message", Desc: "If not empty, exits the shell with error message."})
-		if err := f.Err(); err != nil {
+		f := Flags(ctx)
+		errMsg := f.String(Flag{Short: 'm', Desc: "Exit shell with an error message."})
+		if err := f.Parse(); err != nil {
 			return err
 		}
 
-		if errMsg != "" {
-			return exitErr{errors.New(errMsg)}
+		if errMsg != nil {
+			return exitErr{errors.New(*errMsg)}
 		}
 
 		return exitErr{nil}
