@@ -2,6 +2,7 @@ package mem
 
 import (
 	"io"
+	"time"
 
 	"github.com/mastercactapus/embedded/i2c"
 )
@@ -17,6 +18,7 @@ func NewAT24C01(bus i2c.Bus, addr uint16) *Pager {
 		PageSize:    4,
 		AddressSize: 1,
 		Capacity:    128,
+		WriteDelay:  5 * time.Millisecond,
 	})
 }
 
@@ -31,6 +33,7 @@ func NewAT24C01A(bus i2c.Bus, addr uint16) *Pager {
 		PageSize:    8,
 		AddressSize: 1,
 		Capacity:    128,
+		WriteDelay:  5 * time.Millisecond,
 	})
 }
 
@@ -42,6 +45,7 @@ func NewAT24C02(bus i2c.Bus, addr uint16) *Pager {
 		PageSize:    8,
 		AddressSize: 1,
 		Capacity:    256,
+		WriteDelay:  5 * time.Millisecond,
 	})
 }
 
@@ -67,6 +71,7 @@ func NewAT24C04(bus i2c.Bus, addr uint16) io.ReadWriteSeeker {
 		PageSize:    16,
 		AddressSize: 1,
 		Capacity:    256,
+		WriteDelay:  5 * time.Millisecond,
 	}, 2)
 }
 
@@ -79,6 +84,7 @@ func NewAT24C08(bus i2c.Bus, addr uint16) io.ReadWriteSeeker {
 		PageSize:    16,
 		AddressSize: 1,
 		Capacity:    256,
+		WriteDelay:  5 * time.Millisecond,
 	}, 4)
 }
 
@@ -91,6 +97,7 @@ func NewAT24C16(bus i2c.Bus, addr uint16) io.ReadWriteSeeker {
 		PageSize:    16,
 		AddressSize: 1,
 		Capacity:    256,
+		WriteDelay:  5 * time.Millisecond,
 	}, 8)
 }
 
@@ -102,6 +109,7 @@ func NewAT24C32(bus i2c.Bus, addr uint16) *Pager {
 		PageSize:    32,
 		AddressSize: 2,
 		Capacity:    4096,
+		WriteDelay:  5 * time.Millisecond,
 	})
 }
 
@@ -113,5 +121,6 @@ func NewAT24C64(bus i2c.Bus, addr uint16) *Pager {
 		PageSize:    32,
 		AddressSize: 2,
 		Capacity:    8192,
+		WriteDelay:  5 * time.Millisecond,
 	})
 }

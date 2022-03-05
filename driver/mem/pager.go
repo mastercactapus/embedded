@@ -3,6 +3,7 @@ package mem
 import (
 	"fmt"
 	"io"
+	"time"
 )
 
 // Pager is a memory device that can be used to read and write to pages of memory.
@@ -20,6 +21,8 @@ type Pager struct {
 	devPos    int
 	pos       int
 	buf       []byte
+
+	delay time.Duration
 }
 
 type PagerConfig struct {
@@ -36,6 +39,9 @@ type PagerConfig struct {
 
 	// AddressSize is the size of the address used to access the memory device.
 	AddressSize int
+
+	// WriteDelay is the time after writing to wait for the timed write cycle to complete.
+	WriteDelay time.Duration
 }
 
 func NewPager(rw io.ReadWriter, cfg PagerConfig) *Pager {
@@ -46,6 +52,7 @@ func NewPager(rw io.ReadWriter, cfg PagerConfig) *Pager {
 		pageSize:  cfg.PageSize,
 		totalSize: cfg.Capacity,
 		devPos:    -1,
+		delay:     cfg.WriteDelay,
 	}
 }
 
@@ -102,6 +109,28 @@ func (d *Pager) incrPos(n int) {
 	}
 }
 
+func (d *Pager) ReadAt(p []byte, offset int64) (_ int, err error) {
+	if offset != int64(d.pos) {
+		_, err = d.Seek(offset, io.SeekStart)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return d.Read(p)
+}
+
+func (d *Pager) WriteAt(p []byte, offset int64) (_ int, err error) {
+	if offset != int64(d.pos) {
+		_, err = d.Seek(offset, io.SeekStart)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return d.Write(p)
+}
+
 func (d *Pager) Write(p []byte) (n int, err error) {
 	if d.eof() {
 		return 0, io.EOF
@@ -140,6 +169,9 @@ func (d *Pager) Write(p []byte) (n int, err error) {
 		rem = rem[n-1:]
 	}
 
+	if d.delay > 0 {
+		time.Sleep(d.delay)
+	}
 	return len(p), nil
 }
 
