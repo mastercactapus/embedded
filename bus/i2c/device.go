@@ -24,6 +24,13 @@ func NewDevice(bus Bus, addr uint16) *Device {
 	return &Device{bus: bus, addr: addr}
 }
 
+// Tx is a convenience method that sends a write and read request to the device,
+// it uses a reapeated START contidition meaning the bus is not released
+// between the two calls. Otherwise it is the same as calling Write then Read.
+func (d *Device) Tx(w, r []byte) error {
+	return d.bus.Tx(d.addr, w, r)
+}
+
 func (d *Device) Write(w []byte) (int, error) {
 	if wt := d.bus.(WriterTo); wt != nil {
 		return wt.WriteTo(w, d.addr)

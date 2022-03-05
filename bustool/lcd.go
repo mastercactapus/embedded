@@ -4,8 +4,8 @@ import (
 	"context"
 	"io"
 
+	"github.com/mastercactapus/embedded/bus/i2c"
 	"github.com/mastercactapus/embedded/driver/lcd"
-	"github.com/mastercactapus/embedded/i2c"
 	"github.com/mastercactapus/embedded/term"
 )
 

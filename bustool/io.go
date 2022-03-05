@@ -4,8 +4,8 @@ import (
 	"context"
 	"strconv"
 
+	"github.com/mastercactapus/embedded/bus/i2c"
 	"github.com/mastercactapus/embedded/driver/ioexp"
-	"github.com/mastercactapus/embedded/i2c"
 	"github.com/mastercactapus/embedded/term"
 	"github.com/mastercactapus/embedded/term/ansi"
 )

@@ -4,8 +4,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/mastercactapus/embedded/bus/i2c"
 	"github.com/mastercactapus/embedded/driver/ioexp"
-	"github.com/mastercactapus/embedded/i2c"
 )
 
 type HD44780 struct {

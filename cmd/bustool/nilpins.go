@@ -1,6 +1,6 @@
 package main
 
-import "github.com/mastercactapus/embedded/i2c"
+import "github.com/mastercactapus/embedded/bus/i2c"
 
 type nilPin bool
 

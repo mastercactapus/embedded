@@ -3,7 +3,7 @@ package main
 import (
 	"machine"
 
-	"github.com/mastercactapus/embedded/i2c"
+	"github.com/mastercactapus/embedded/bus/i2c"
 )
 
 type i2cPin machine.Pin
