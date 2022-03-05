@@ -29,6 +29,10 @@ func (sh *Shell) Exec(ctx context.Context) error {
 				lastRune = r
 				continue
 			}
+			if r == '\r' && lastRune == '\n' {
+				lastRune = r
+				continue
+			}
 
 			switch r {
 			case '\x07', '\t': // ignore
@@ -129,8 +133,10 @@ func (sh *Shell) Exec(ctx context.Context) error {
 				break
 			}
 		}
-		history = append(history, string(input))
-		histIndex = len(history)
+		if len(input) > 0 {
+			history = append(history, string(input))
+			histIndex = len(history)
+		}
 
 		cmdLine, err := ParseCmdLine(string(input))
 		if err != nil {

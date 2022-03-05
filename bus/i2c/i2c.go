@@ -177,24 +177,21 @@ func (i2c *I2C) Write(p []byte) (int, error) {
 }
 
 // Read will read directly from the bus, without any address or start/stop condition.
-func (i2c *I2C) Read(p []byte) (int, error) {
-	buf := p
-	for len(buf) > 0 {
-		for i := 0; i < 8; i++ {
-			if i2c.readBit() {
-				buf[0] = buf[0] | (1 << (7 - i))
-			}
+func (i2c *I2C) Read(p []byte) (n int, err error) {
+	for i := range p {
+		if p[i], err = i2c._ReadByte(i == len(p)-1); err != nil {
+			return i, err
 		}
-
-		i2c.writeBit(len(buf) == 1)
-		buf = buf[1:]
 	}
-
 	return len(p), nil
 }
 
 // ReadByte reads a single byte directly from the bus, without any address or start/stop condition.
 func (i2c *I2C) ReadByte() (byte, error) {
+	return i2c._ReadByte(true)
+}
+
+func (i2c *I2C) _ReadByte(nak bool) (byte, error) {
 	var b byte
 	for i := 0; i < 8; i++ {
 		if i2c.readBit() {
@@ -202,7 +199,7 @@ func (i2c *I2C) ReadByte() (byte, error) {
 		}
 	}
 
-	i2c.writeBit(true)
+	i2c.writeBit(nak)
 
 	wait()
 
@@ -219,6 +216,7 @@ func (i2c *I2C) WriteByte(b byte) error {
 		return ErrNack
 	}
 
+	i2c.sda.PullupHigh()
 	wait()
 
 	return nil
@@ -253,6 +251,10 @@ func (i2c *I2C) readBit() (value bool) {
 	i2c.clockUp()
 	wait()
 	value = i2c.sda.Get()
+	if !value {
+		// keep it low
+		i2c.sda.OutputLow()
+	}
 	wait()
 	i2c.scl.OutputLow()
 	wait()

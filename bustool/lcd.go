@@ -69,7 +69,7 @@ var lcdCommands = []term.Command{
 
 		dev := ctx.Value(ctxKeyLCD).(*lcd.HD44780)
 
-		err := dev.SetCursor(*y, *x)
+		err := dev.SetCursor(*x, *y)
 		if err != nil {
 			return err
 		}

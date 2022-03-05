@@ -66,8 +66,8 @@ func size(s io.Seeker) int {
 var memCommands = []term.Command{
 	{Name: "r", Desc: "Read device data.", Exec: func(ctx context.Context) error {
 		f := term.Flags(ctx)
-		start := f.Int(term.Flag{Name: "s", Def: "0", Desc: "Position to start from.", Req: true})
-		count := f.Int(term.Flag{Name: "n", Def: "0", Desc: "Number of bytes to read, if zero read to end."})
+		start := f.Int(term.Flag{Short: 's', Def: "0", Desc: "Position to start from.", Req: true})
+		count := f.Int(term.Flag{Short: 'n', Def: "0", Desc: "Number of bytes to read, if zero read to end."})
 		if err := f.Parse(); err != nil {
 			return err
 		}
@@ -110,9 +110,9 @@ var memCommands = []term.Command{
 	}},
 	{Name: "format", Desc: "Clear all data.", Exec: func(ctx context.Context) error {
 		f := term.Flags(ctx)
-		start := f.Int(term.Flag{Name: "p", Def: "0", Desc: "Position to start from.", Req: true})
-		count := f.Int(term.Flag{Name: "n", Def: "0", Desc: "Number of bytes to wipe, if zero clear to end."})
-		value := f.Byte(term.Flag{Name: "v", Def: "0xff", Desc: "Value to write."})
+		start := f.Int(term.Flag{Short: 'p', Def: "0", Desc: "Position to start from.", Req: true})
+		count := f.Int(term.Flag{Short: 'n', Def: "0", Desc: "Number of bytes to wipe, if zero clear to end."})
+		value := f.Byte(term.Flag{Short: 'v', Def: "0xff", Desc: "Value to write."})
 		rnd := f.Bool(term.Flag{Name: "random", Desc: "Fill with random data."})
 		if err := f.Parse(); err != nil {
 			return err

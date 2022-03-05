@@ -40,6 +40,9 @@ func (i2c *I2C) ReadRegister(addr, reg byte, p []byte) error {
 
 // TODO: necessary? rename?
 func (i2c *I2C) TxN(addr uint16, w, r []byte) (wn, rn int, err error) {
+	if len(w)+len(r) == 0 {
+		return 0, 0, nil
+	}
 	i2c.Start()
 	defer i2c.Stop()
 
