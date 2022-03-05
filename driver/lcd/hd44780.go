@@ -143,7 +143,7 @@ func (lcd *HD44780) SetDDRAMAddr(addr byte) error {
 }
 
 // TODO: validate copilot code
-func (lcd *HD44780) SetCursor(line, col byte) error {
+func (lcd *HD44780) SetCursor(col, line byte) error {
 	if line > 1 {
 		return errors.New("line must be 0 or 1")
 	}
