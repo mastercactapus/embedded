@@ -23,14 +23,16 @@ type Pin16 uint16
 func (Pin16) Len() int { return 8 }
 
 func (p Pin16) Value(n int) bool {
-	if n < 0 || n >= 8 {
+	if n < 0 || n >= 16 {
 		return false
 	}
-
 	return (p & (1 << n)) != 0
 }
 
 func (p *Pin16) Set(n int, v bool) {
+	if n < 0 || n >= 16 {
+		return
+	}
 	if v {
 		*p |= (1 << n)
 	} else {

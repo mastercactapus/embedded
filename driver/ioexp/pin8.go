@@ -31,6 +31,9 @@ func (p Pin8) Value(n int) bool {
 }
 
 func (p *Pin8) Set(n int, v bool) {
+	if n < 0 || n >= 8 {
+		return
+	}
 	if v {
 		*p |= (1 << n)
 	} else {
@@ -39,6 +42,9 @@ func (p *Pin8) Set(n int, v bool) {
 }
 
 func (p *Pin8) Toggle(n int) {
+	if n < 0 || n >= 8 {
+		return
+	}
 	*p ^= (1 << n)
 }
 
