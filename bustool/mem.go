@@ -66,24 +66,25 @@ func size(s io.Seeker) int {
 var memCommands = []term.Command{
 	{Name: "r", Desc: "Read device data.", Exec: func(ctx context.Context) error {
 		f := term.Flags(ctx)
-		start := f.Int(term.Flag{Name: "p", Def: "0", Desc: "Position to start from.", Req: true})
+		start := f.Int(term.Flag{Name: "s", Def: "0", Desc: "Position to start from.", Req: true})
 		count := f.Int(term.Flag{Name: "n", Def: "0", Desc: "Number of bytes to read, if zero read to end."})
 		if err := f.Parse(); err != nil {
 			return err
 		}
 
 		mem := ctx.Value(ctxKeyMem).(memDevice)
-		if *count == 0 {
-			*count = size(mem) - *start
-		}
-		if *count <= 0 {
-			return nil
-		}
 
-		data := make([]byte, *count)
-		_, err := mem.ReadAt(data, int64(*start))
+		_, err := mem.Seek(int64(*start), 0)
 		if err != nil {
 			return err
+		}
+
+		var data []byte
+		if *count == 0 {
+			data, err = io.ReadAll(mem)
+		} else {
+			data = make([]byte, *count)
+			_, err = io.ReadFull(mem, data)
 		}
 
 		term.Printer(ctx).Print(hex.Dump(data))
@@ -91,15 +92,16 @@ var memCommands = []term.Command{
 	}},
 	{Name: "w", Desc: "Write device data.", Exec: func(ctx context.Context) error {
 		f := term.Flags(ctx)
-		start := f.Int(term.Flag{Short: 'p', Def: "0", Desc: "Position to start from.", Req: true})
-		data := f.Bytes(term.Flag{Name: "data", Short: 'b', Desc: "Write bytes (comma separated).", Req: true})
+		start := f.Int(term.Flag{Short: 's', Def: "0", Desc: "Position to start from.", Req: true})
+		binData := f.Bytes(term.Flag{Name: "data", Short: 'b', Desc: "Write bytes (comma separated) before arg data."})
 		if err := f.Parse(); err != nil {
 			return err
 		}
 
 		mem := ctx.Value(ctxKeyMem).(memDevice)
 
-		_, err := mem.WriteAt(*data, int64(*start))
+		data := append(*binData, []byte(f.Arg(0))...)
+		_, err := mem.WriteAt(data, int64(*start))
 		if err != nil {
 			return err
 		}

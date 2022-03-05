@@ -43,6 +43,7 @@ func (sh *Shell) Exec(ctx context.Context) error {
 				}
 				continue
 			case '\r', '\n':
+				// TODO: consume all newlines
 				sh.p.Println()
 				break readInput
 			case '\x1b':

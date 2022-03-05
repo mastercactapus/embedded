@@ -67,6 +67,10 @@ func (d *Pager) Read(p []byte) (n int, err error) {
 		return 0, io.EOF
 	}
 
+	if len(p) > d.remBytes() {
+		p = p[:d.remBytes()]
+	}
+
 	if d.devPos != d.pos {
 		switch d.addrSize {
 		case 1:
@@ -79,10 +83,13 @@ func (d *Pager) Read(p []byte) (n int, err error) {
 		if err != nil {
 			return 0, err
 		}
+		d.incrPos(len(p))
 		return len(p), err
 	}
 
-	return d.rw.Read(p)
+	n, err = d.rw.Read(p)
+	d.incrPos(n)
+	return n, err
 }
 
 func (d *Pager) remBytes() int {
