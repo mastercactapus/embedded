@@ -165,18 +165,18 @@ func (d *Pager) Write(p []byte) (n int, err error) {
 		}
 
 		n, err = d.rw.Write(pbuf[:copy(pbuf[d.addrSize:], rem)+d.addrSize])
-		d.incrPos(n)
+		d.incrPos(n - d.addrSize)
 		if err != nil {
 			// sent bytes -1 for the address byte
 			return n + len(p) - len(rem) - d.addrSize, err
+		}
+		if d.delay > 0 {
+			time.Sleep(d.delay)
 		}
 
 		rem = rem[n-1:]
 	}
 
-	if d.delay > 0 {
-		time.Sleep(d.delay)
-	}
 	return len(p), nil
 }
 
