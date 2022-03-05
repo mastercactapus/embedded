@@ -164,11 +164,11 @@ var ioCommands = []term.Command{
 
 		dev := ctx.Value(ctxKeyIO).(ioexp.PinReadWriter)
 
-		mask, err := pinMask(f.Args())
+		pins, err := pinMask(f.Args())
 		if err != nil {
 			return f.UsageError("parse args: %w", err)
 		}
 
-		return dev.WritePins(mask)
+		return dev.WritePins(pins)
 	}},
 }
