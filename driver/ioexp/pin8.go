@@ -1,5 +1,22 @@
 package ioexp
 
+// PinByte converts a valuer to byte by taking the lowest 8 bits.
+func PinByte(v Valuer) (r byte) {
+	switch p := v.(type) {
+	case Pin8:
+		return byte(p)
+	case *Pin8:
+		return byte(*p)
+	}
+
+	for i := 0; i < 8; i++ {
+		if v.Value(i) {
+			r |= 1 << i
+		}
+	}
+	return r
+}
+
 // Pin8 is a PinState for 8-bit expanders.
 type Pin8 uint8
 
@@ -35,4 +52,16 @@ func (p *Pin8) SetAll(v bool) {
 	} else {
 		*p = 0
 	}
+}
+
+func (p Pin8) Map(fn func(int) int) PinState {
+	if fn == nil {
+		return &p
+	}
+
+	var n Pin8
+	for i := 0; i < 8; i++ {
+		n.Set(fn(i), p.Value(i))
+	}
+	return &n
 }

@@ -8,6 +8,15 @@ type Valuer interface {
 
 	// Len returns the number of underlying pins.
 	Len() int
+
+	// Map returns a new PinState that is the result of applying the given
+	// function to each pin.
+	//
+	// The returned PinState will be the same type as the receiver and
+	// is guaranteed to have the same number of pins.
+	//
+	// Map may be called with nil to return a copy of the pins.
+	Map(func(int) int) PinState
 }
 
 // PinState is a generic interface for IO expander pin state.
