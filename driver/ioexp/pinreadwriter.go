@@ -47,7 +47,8 @@ type InvertSetter interface {
 type PinReader interface {
 	// ReadPins will read the current *VALUE* of all IO pins.
 	//
-	// This may be different than the last written state.
+	// Implementers should ensure the value is that of the actual pin state, and not
+	// the register state.
 	//
 	// If the device does not support reading, ErrWriteOnly should be returned.
 	ReadPins() (PinState, error)
