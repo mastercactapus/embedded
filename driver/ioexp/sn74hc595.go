@@ -9,7 +9,11 @@ func PinMap(pins []int) func(int) int {
 type SN74HC595 struct {
 	w    PinWriter
 	pins PinBool
+
+	m *PinMasker
 }
+
+var _ PinWriter = (*SN74HC595)(nil)
 
 // NewSN74HC595 creates a PinWriter that writes to a 74HC595 shift register.
 //
@@ -21,6 +25,7 @@ func NewSN74HC595(w PinWriter, bits int) *SN74HC595 {
 	return &SN74HC595{
 		w:    w,
 		pins: make(PinBool, 3),
+		m:    NewPinMasker(bits),
 	}
 }
 
@@ -44,7 +49,7 @@ func (s *SN74HC595) writeBit(val bool) (err error) {
 
 func (s *SN74HC595) WritePins(pins Valuer) (err error) {
 	s.pins.SetAll(false)
-	for i := pins.Len() - 1; i >= 0; i-- {
+	for i := s.PinCount() - 1; i >= 0; i-- {
 		if err = s.writeBit(pins.Value(i)); err != nil {
 			return err
 		}
@@ -56,4 +61,8 @@ func (s *SN74HC595) WritePins(pins Valuer) (err error) {
 	}
 	s.pins.Set(1, false)
 	return s.w.WritePins(s.pins)
+}
+
+func (s *SN74HC595) WritePinsMask(pins, mask Valuer) error {
+	return s.m.ApplyFn(pins, mask, s.WritePins)
 }

@@ -38,17 +38,17 @@ func (i2c *I2C) ReadRegister(addr, reg byte, p []byte) error {
 	return err
 }
 
-func (i2c *I2C) Tx(addr uint16, w, r []byte) error {
+// TODO: necessary? rename?
+func (i2c *I2C) TxN(addr uint16, w, r []byte) (wn, rn int, err error) {
 	i2c.Start()
 	defer i2c.Stop()
 
 	if len(w) > 0 {
-		if err := i2c.writeAddress(addr, modeWrite); err != nil {
-			return err
+		if err = i2c.writeAddress(addr, modeWrite); err != nil {
+			return
 		}
-
-		if _, err := i2c.Write(w); err != nil {
-			return err
+		if wn, err = i2c.Write(w); err != nil {
+			return
 		}
 	}
 
@@ -57,14 +57,19 @@ func (i2c *I2C) Tx(addr uint16, w, r []byte) error {
 			// repeated start
 			i2c.Start()
 		}
-		if err := i2c.writeAddress(addr, modeRead); err != nil {
-			return err
+		if err = i2c.writeAddress(addr, modeRead); err != nil {
+			return
 		}
 
-		if _, err := i2c.Read(r); err != nil {
-			return err
+		if rn, err = i2c.Read(r); err != nil {
+			return
 		}
 	}
 
-	return nil
+	return
+}
+
+func (i2c *I2C) Tx(addr uint16, w, r []byte) (err error) {
+	_, _, err = i2c.TxN(addr, w, r)
+	return err
 }

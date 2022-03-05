@@ -128,6 +128,25 @@ func (fs *FlagSet) Args() []string {
 	return fs.set.Args()
 }
 
+func (fs *FlagSet) Enum(f Flag, vals ...string) *string {
+	if f.Env != "" {
+		envVal, _ := fs.env(f.Env)
+		if envVal != "" {
+			f.Def = envVal
+		}
+	}
+
+	str := fs.set.EnumLong(f.Name, f.Short, vals, f.Def, f.Desc)
+	if f.Req && f.Def == "" {
+		if fl := fs.set.Lookup(f.Name); fl != nil {
+			fl.Mandatory()
+		} else {
+			fs.set.Lookup(f.Short).Mandatory()
+		}
+	}
+	return str
+}
+
 func (fs *FlagSet) Bytes(f Flag) *[]byte {
 	var v []byte
 	fs.flag(f, flagVal{&v})

@@ -2,19 +2,34 @@ package bustool
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
 	"github.com/mastercactapus/embedded/bus/i2c"
 	"github.com/mastercactapus/embedded/driver/ioexp"
 	"github.com/mastercactapus/embedded/term"
-	"github.com/mastercactapus/embedded/term/ansi"
 )
+
+func pinMask(args []string) (ioexp.Valuer, error) {
+	var pins []int
+	for _, arg := range args {
+		if arg == "all" {
+			return ioexp.AllPins(true), nil
+		}
+		i, err := strconv.Atoi(arg)
+		if err != nil {
+			return nil, err
+		}
+		pins = append(pins, i)
+	}
+	return ioexp.PinMask(pins), nil
+}
 
 func AddIO(sh *term.Shell) *term.Shell {
 	ioSh := sh.NewSubShell(term.Command{Name: "io", Desc: "Interact with IO expansion chips over I2C.", Init: func(ctx context.Context, exec term.CmdFunc) error {
 		f := term.Flags(ctx)
 		addr := f.Uint16(term.Flag{Name: "addr", Short: 'd', Def: "0x20", Env: "DEV", Desc: "Device addresss.", Req: true})
-		pinN := f.Int(term.Flag{Name: "pins", Short: 'p', Def: "8", Desc: "Pin count.", Req: true})
+		devType := f.Enum(term.Flag{Name: "type", Short: 't', Def: "mcp", Desc: "IO device type.", Req: true}, "pcf", "mcp")
 		if err := f.Parse(); err != nil {
 			return err
 		}
@@ -22,11 +37,13 @@ func AddIO(sh *term.Shell) *term.Shell {
 		var dev ioexp.PinReadWriter
 		bus := ctx.Value(ctxKeyI2C).(i2c.Bus)
 
-		switch *pinN {
-		case 8:
+		switch *devType {
+		case "mcp":
+			dev = ioexp.NewMCP23017(bus, *addr)
+		case "pcf":
 			dev = ioexp.NewPCF8574(bus, *addr)
 		default:
-			return f.UsageError("unsupported pin count %d", pinN)
+			return f.UsageError("unsupported device type '%s'", *devType)
 		}
 
 		return exec(context.WithValue(ctx, ctxKeyIO, dev))
@@ -50,117 +67,108 @@ var ioCommands = []term.Command{
 			return err
 		}
 
-		var t ansi.Table
-		t.AddRow("0", "1", "2", "3", "4", "5", "6", "7")
-		var state []string
-		for i := 0; i < 8; i++ {
-			if pins.Value(i) {
-				state = append(state, "H")
-			} else {
-				state = append(state, "L")
-			}
+		p := term.Printer(ctx)
+		for i := 0; i < dev.PinCount(); i++ {
+			p.Printf("% 3d ", i)
 		}
-		t.AddRow(state...)
-
-		term.Printer(ctx).Println(t.String())
+		p.Println()
+		for i := 0; i < dev.PinCount(); i++ {
+			val := 0
+			if pins.Value(i) {
+				val = 1
+			}
+			p.Printf("% 3d ", val)
+		}
+		p.Println()
 
 		return nil
 	}},
 
-	{Name: "on", Desc: "Turn on selected pin(s).", Exec: func(ctx context.Context) error {
-		if err := term.Flags(ctx).Parse(); err != nil {
+	{Name: "input", Desc: "Set selected pins to input, rest as output.", Exec: func(ctx context.Context) error {
+		f := term.Flags(ctx)
+		if err := f.Parse(); err != nil {
 			return err
 		}
 
 		dev := ctx.Value(ctxKeyIO).(ioexp.PinReadWriter)
-		pins, err := dev.ReadPins()
+		is, ok := dev.(ioexp.InputSetter)
+		if !ok {
+			return fmt.Errorf("device does not support setting input pins")
+		}
+
+		mask, err := pinMask(f.Args())
 		if err != nil {
+			return f.UsageError("parse args: %w", err)
+		}
+
+		return is.SetInputPinsMask(ioexp.AllPins(true), mask)
+	}},
+
+	{Name: "output", Desc: "Set selected pins to output, rest as input.", Exec: func(ctx context.Context) error {
+		f := term.Flags(ctx)
+		if err := f.Parse(); err != nil {
 			return err
 		}
-		for _, a := range term.Flags(ctx).Args() {
-			if a == "all" {
-				pins.SetAll(true)
-				break
-			}
-			n, err := strconv.Atoi(a)
-			if err != nil {
-				return err
-			}
 
-			pins.Set(n, true)
+		dev := ctx.Value(ctxKeyIO).(ioexp.PinReadWriter)
+		is, ok := dev.(ioexp.InputSetter)
+		if !ok {
+			return fmt.Errorf("device does not support setting input pins")
 		}
-		return dev.WritePins(pins)
+
+		mask, err := pinMask(f.Args())
+		if err != nil {
+			return f.UsageError("parse args: %w", err)
+		}
+
+		return is.SetInputPinsMask(ioexp.AllPins(false), mask)
+	}},
+
+	{Name: "on", Desc: "Turn on selected pin(s).", Exec: func(ctx context.Context) error {
+		f := term.Flags(ctx)
+		if err := f.Parse(); err != nil {
+			return err
+		}
+
+		dev := ctx.Value(ctxKeyIO).(ioexp.PinReadWriter)
+
+		mask, err := pinMask(f.Args())
+		if err != nil {
+			return f.UsageError("parse args: %w", err)
+		}
+
+		return dev.WritePinsMask(ioexp.AllPins(true), mask)
 	}},
 
 	{Name: "off", Desc: "Turn off selected pin(s).", Exec: func(ctx context.Context) error {
-		if err := term.Flags(ctx).Parse(); err != nil {
+		f := term.Flags(ctx)
+		if err := f.Parse(); err != nil {
 			return err
 		}
 
 		dev := ctx.Value(ctxKeyIO).(ioexp.PinReadWriter)
-		pins, err := dev.ReadPins()
-		if err != nil {
-			return err
-		}
-		for _, a := range term.Flags(ctx).Args() {
-			if a == "all" {
-				pins.SetAll(false)
-				break
-			}
-			n, err := strconv.Atoi(a)
-			if err != nil {
-				return err
-			}
 
-			pins.Set(n, false)
+		mask, err := pinMask(f.Args())
+		if err != nil {
+			return f.UsageError("parse args: %w", err)
 		}
-		return dev.WritePins(pins)
+
+		return dev.WritePinsMask(ioexp.AllPins(false), mask)
 	}},
 
 	{Name: "set", Desc: "Turn on ONLY selected pin(s).", Exec: func(ctx context.Context) error {
-		if err := term.Flags(ctx).Parse(); err != nil {
+		f := term.Flags(ctx)
+		if err := f.Parse(); err != nil {
 			return err
 		}
 
 		dev := ctx.Value(ctxKeyIO).(ioexp.PinReadWriter)
-		var pins ioexp.Pin8
-		for _, a := range term.Flags(ctx).Args() {
-			if a == "all" {
-				pins.SetAll(true)
-				break
-			}
-			n, err := strconv.Atoi(a)
-			if err != nil {
-				return err
-			}
 
-			pins.Set(n, true)
-		}
-		return dev.WritePins(pins)
-	}},
-
-	{Name: "toggle", Desc: "Toggle selected pin(s).", Exec: func(ctx context.Context) error {
-		if err := term.Flags(ctx).Parse(); err != nil {
-			return err
-		}
-
-		dev := ctx.Value(ctxKeyIO).(ioexp.PinReadWriter)
-		pins, err := dev.ReadPins()
+		mask, err := pinMask(f.Args())
 		if err != nil {
-			return err
+			return f.UsageError("parse args: %w", err)
 		}
-		for _, a := range term.Flags(ctx).Args() {
-			if a == "all" {
-				pins.ToggleAll()
-				continue
-			}
-			n, err := strconv.Atoi(a)
-			if err != nil {
-				return err
-			}
 
-			pins.Toggle(n)
-		}
-		return dev.WritePins(pins)
+		return dev.WritePins(mask)
 	}},
 }

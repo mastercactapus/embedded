@@ -3,6 +3,19 @@ package ioexp
 // PinBool stores an arbitrary number of pins as bool.
 type PinBool []bool
 
+// NewPins returns a new PinState with the provided number of pins.
+func NewPins(n int) PinState {
+	switch n {
+	case 8:
+		return new(Pin8)
+	case 16:
+		return new(Pin16)
+	}
+
+	p := make(PinBool, n)
+	return &p
+}
+
 func (p PinBool) Len() int { return len(p) }
 func (p PinBool) Value(n int) bool {
 	if n > len(p) {

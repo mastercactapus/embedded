@@ -1,5 +1,7 @@
 package i2c
 
+import "github.com/mastercactapus/embedded/bus"
+
 type Bus interface {
 	Tx(addr uint16, w, r []byte) error
 }
@@ -8,6 +10,9 @@ type Device struct {
 	bus  Bus
 	addr uint16
 }
+
+var _ bus.Transmitter = (*Device)(nil)
+
 type WriterTo interface {
 	WriteTo([]byte, uint16) (int, error)
 }
@@ -27,7 +32,7 @@ func NewDevice(bus Bus, addr uint16) *Device {
 // Tx is a convenience method that sends a write and read request to the device,
 // it uses a reapeated START contidition meaning the bus is not released
 // between the two calls. Otherwise it is the same as calling Write then Read.
-func (d *Device) Tx(w, r []byte) error {
+func (d *Device) Tx(w, r []byte) (err error) {
 	return d.bus.Tx(d.addr, w, r)
 }
 

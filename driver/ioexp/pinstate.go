@@ -1,14 +1,26 @@
 package ioexp
 
+// AllPins is a read-only PinState that reads all pins the same.
+type AllPins bool
+
+func (p AllPins) Len() int         { return -1 }
+func (p AllPins) Value(n int) bool { return bool(p) }
+
+func (p AllPins) Map(func(int) int) PinState { return p }
+
+func (AllPins) Set(int, bool) {}
+func (AllPins) Toggle(int)    {}
+func (AllPins) ToggleAll()    {}
+func (AllPins) SetAll(bool)   {}
+
 type Valuer interface {
 	// Value returns true if the pin is HIGH, false if LOW.
 	//
 	// Calling Get on a pin that is not available will always return false.
 	Value(int) bool
+}
 
-	// Len returns the number of underlying pins.
-	Len() int
-
+type Mapper interface {
 	// Map returns a new PinState that is the result of applying the given
 	// function to each pin.
 	//
@@ -44,13 +56,10 @@ type Setter interface {
 
 	// ToggleAll is a convenience method that toggles all pins.
 	ToggleAll()
-
-	// Len returns the number of underlying pins.
-	Len() int
 }
 
-// CopyState copies the state of one PinState to another.
-func CopyState(dst Setter, src Valuer) {
+// CopyN copies the state of one set of pins to another.
+func CopyN(dst Setter, src Valuer, n int) {
 	if dt, ok := dst.(*Pin8); ok {
 		switch s := src.(type) {
 		case *Pin8:
@@ -62,10 +71,6 @@ func CopyState(dst Setter, src Valuer) {
 		}
 	}
 
-	n := dst.Len()
-	if n > src.Len() {
-		n = src.Len()
-	}
 	for i := 0; i < n; i++ {
 		dst.Set(i, src.Value(i))
 	}
