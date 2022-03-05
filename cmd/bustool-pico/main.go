@@ -4,6 +4,7 @@ import (
 	"context"
 	"machine"
 
+	"github.com/mastercactapus/embedded/bus/i2c"
 	"github.com/mastercactapus/embedded/bustool"
 )
 
@@ -16,7 +17,11 @@ func main() {
 	}
 
 	sh := bustool.NewShell(&fixReader{machine.Serial}, machine.Serial)
-	i2cSh := bustool.AddI2C(sh, i2cPin(machine.I2C0_SDA_PIN), i2cPin(machine.I2C0_SCL_PIN))
+	bus, err := i2c.I2C0()
+	if err != nil {
+		panic(err)
+	}
+	i2cSh := bustool.AddI2C(sh, bus)
 	bustool.AddMem(i2cSh)
 	bustool.AddIO(i2cSh)
 	bustool.AddLCD(i2cSh)

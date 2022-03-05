@@ -17,18 +17,9 @@ const (
 	ctxKeyLCD
 )
 
-func AddI2C(sh *term.Shell, sda, scl i2c.Pin) *term.Shell {
+func AddI2C(sh *term.Shell, bus *i2c.I2C) *term.Shell {
 	i2cSh := sh.NewSubShell(term.Command{Name: "i2c", Desc: "Interact with I2C devices.", Init: func(ctx context.Context, exec term.CmdFunc) error {
 		if err := term.Flags(ctx).Parse(); err != nil {
-			return err
-		}
-
-		bus := i2c.New()
-		err := bus.Configure(i2c.Config{
-			SDA: sda,
-			SCL: scl,
-		})
-		if err != nil {
 			return err
 		}
 
