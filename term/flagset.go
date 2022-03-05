@@ -173,7 +173,7 @@ func (f flagVal) String() string {
 	case *string:
 		return *v
 	case *uint16:
-		return strconv.FormatUint(uint64(*v), 10)
+		return fmt.Sprintf("0x%02x", *v)
 	case *bool:
 		return strconv.FormatBool(*v)
 	case *int:
