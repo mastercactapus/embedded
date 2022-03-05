@@ -2,6 +2,8 @@
 
 Collection of tools, drivers, etc... for embedded development.
 
+Primarily focused on building `bustool` as a shell-over-serial for debugging and interacting with embedded devices.
+
 ## OpenOCD
 
 ## Quickstart
