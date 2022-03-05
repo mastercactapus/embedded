@@ -172,6 +172,8 @@ func (f flagVal) String() string {
 	switch v := f.value.(type) {
 	case *string:
 		return *v
+	case *uint16:
+		return strconv.FormatUint(uint64(*v), 10)
 	case *bool:
 		return strconv.FormatBool(*v)
 	case *int:
@@ -227,6 +229,12 @@ func (f flagVal) Set(s string, opt getopt.Option) error {
 			return err
 		}
 		*v = int(p)
+	case *uint16:
+		p, err := strconv.ParseUint(s, 0, 16)
+		if err != nil {
+			return err
+		}
+		*v = uint16(p)
 	case *byte:
 		p, err := strconv.ParseUint(s, 0, 8)
 		if err != nil {

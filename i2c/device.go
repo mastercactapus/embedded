@@ -21,7 +21,7 @@ type (
 
 // NewDevice returns a new Device with the given bus and address.
 func NewDevice(bus Bus, addr uint16) *Device {
-	return &Device{bus, addr}
+	return &Device{bus: bus, addr: addr}
 }
 
 func (d *Device) Write(w []byte) (int, error) {

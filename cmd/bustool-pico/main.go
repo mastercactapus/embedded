@@ -19,6 +19,7 @@ func main() {
 	i2cSh := bustool.AddI2C(sh, i2cPin(machine.I2C0_SDA_PIN), i2cPin(machine.I2C0_SCL_PIN))
 	bustool.AddMem(i2cSh)
 	bustool.AddIO(i2cSh)
+	bustool.AddLCD(i2cSh)
 
 	err = sh.Exec(context.Background())
 	if err != nil {

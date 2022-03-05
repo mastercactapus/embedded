@@ -6,10 +6,16 @@ import (
 	"io"
 	"math/rand"
 
-	"github.com/mastercactapus/embedded/driver/eeprom"
 	"github.com/mastercactapus/embedded/driver/mem"
+	"github.com/mastercactapus/embedded/i2c"
 	"github.com/mastercactapus/embedded/term"
 )
+
+type memDevice interface {
+	io.ReadWriteSeeker
+	io.ReaderAt
+	io.WriterAt
+}
 
 func AddMem(sh *term.Shell) *term.Shell {
 	memSh := sh.NewSubShell(term.Command{Name: "mem", Desc: "Interact with an AT24Cxx-compatible EEPROM device over I2C.", Init: func(ctx context.Context, exec term.CmdFunc) error {
@@ -20,8 +26,8 @@ func AddMem(sh *term.Shell) *term.Shell {
 			return err
 		}
 
-		var dev io.ReadWriteSeeker
-		bus := ctx.Value(ctxKeyI2C).(eeprom.I2C)
+		var dev memDevice
+		bus := ctx.Value(ctxKeyI2C).(i2c.Bus)
 
 		switch *size {
 		case 1:
@@ -29,11 +35,11 @@ func AddMem(sh *term.Shell) *term.Shell {
 		case 2:
 			dev = mem.NewAT24C02(bus, *addr)
 		case 4:
-			dev = mem.NewAT24C04(bus, *addr)
+			dev = mem.NewAT24C04(bus, *addr).(memDevice)
 		case 8:
-			dev = mem.NewAT24C08(bus, *addr)
+			dev = mem.NewAT24C08(bus, *addr).(memDevice)
 		case 16:
-			dev = mem.NewAT24C16(bus, *addr)
+			dev = mem.NewAT24C16(bus, *addr).(memDevice)
 		case 32:
 			dev = mem.NewAT24C32(bus, *addr)
 		case 64:
@@ -51,6 +57,12 @@ func AddMem(sh *term.Shell) *term.Shell {
 	return memSh
 }
 
+func size(s io.Seeker) int {
+	s.Seek(0, io.SeekEnd)
+	size, _ := s.Seek(0, io.SeekCurrent)
+	return int(size)
+}
+
 var memCommands = []term.Command{
 	{Name: "r", Desc: "Read device data.", Exec: func(ctx context.Context) error {
 		f := term.Flags(ctx)
@@ -60,9 +72,9 @@ var memCommands = []term.Command{
 			return err
 		}
 
-		mem := ctx.Value(ctxKeyMem).(*eeprom.Device)
+		mem := ctx.Value(ctxKeyMem).(memDevice)
 		if *count == 0 {
-			*count = mem.Size() - *start
+			*count = size(mem) - *start
 		}
 		if *count <= 0 {
 			return nil
@@ -85,7 +97,7 @@ var memCommands = []term.Command{
 			return err
 		}
 
-		mem := ctx.Value(ctxKeyMem).(*eeprom.Device)
+		mem := ctx.Value(ctxKeyMem).(memDevice)
 
 		_, err := mem.WriteAt(*data, int64(*start))
 		if err != nil {
@@ -104,10 +116,10 @@ var memCommands = []term.Command{
 			return err
 		}
 
-		mem := ctx.Value(ctxKeyMem).(*eeprom.Device)
+		mem := ctx.Value(ctxKeyMem).(memDevice)
 
 		if *count == 0 {
-			*count = mem.Size() - *start
+			*count = size(mem) - *start
 		}
 		if *count <= 0 {
 			return nil
