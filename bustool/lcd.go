@@ -63,7 +63,6 @@ var lcdCommands = []term.Command{
 		f := term.Flags(ctx)
 		x := f.Byte(term.Flag{Short: 'x', Def: "0", Desc: "Cursor start X.", Req: true})
 		y := f.Byte(term.Flag{Short: 'y', Def: "0", Desc: "Cursor start Y.", Req: true})
-		data := f.String(term.Flag{Name: "data", Short: 's', Desc: "Write string.", Req: true})
 		if err := f.Parse(); err != nil {
 			return err
 		}
@@ -75,7 +74,7 @@ var lcdCommands = []term.Command{
 			return err
 		}
 
-		_, err = io.WriteString(dev, *data)
+		_, err = io.WriteString(dev, f.Arg(0))
 		return err
 	}},
 }

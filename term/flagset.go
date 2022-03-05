@@ -128,6 +128,10 @@ func (fs *FlagSet) Args() []string {
 	return fs.set.Args()
 }
 
+func (fs *FlagSet) Arg(n int) string {
+	return fs.set.Arg(n)
+}
+
 func (fs *FlagSet) Enum(f Flag, vals ...string) *string {
 	if f.Env != "" {
 		envVal, _ := fs.env(f.Env)
