@@ -2,7 +2,7 @@ package ioexp
 
 import "io"
 
-// Simple8Bit is a PCF8574-compatible I/O expander with 8 pins.
+// Simple8Bit is an I/O expander with 8 pins without registers.
 type Simple8Bit struct {
 	rw io.ReadWriter
 }
@@ -32,7 +32,7 @@ func (dev *Simple8Bit) ReadPins() (PinState, error) {
 	return (*Pin8)(&buf[0]), nil
 }
 
-func (dev *Simple8Bit) WritePins(pins PinState) error {
+func (dev *Simple8Bit) WritePins(pins Valuer) error {
 	var b byte
 	switch t := pins.(type) {
 	case *Pin8:

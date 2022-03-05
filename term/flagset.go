@@ -152,6 +152,12 @@ func (fs *FlagSet) Int(f Flag) *int {
 	return &v
 }
 
+func (fs *FlagSet) Uint16(f Flag) *uint16 {
+	var v uint16
+	fs.flag(f, flagVal{&v})
+	return &v
+}
+
 func (fs *FlagSet) Byte(f Flag) *byte {
 	var v byte
 	fs.flag(f, flagVal{&v})

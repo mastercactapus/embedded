@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/mastercactapus/embedded/driver/ioexp"
+	"github.com/mastercactapus/embedded/i2c"
 	"github.com/mastercactapus/embedded/term"
 	"github.com/mastercactapus/embedded/term/ansi"
 )
@@ -12,14 +13,14 @@ import (
 func AddIO(sh *term.Shell) *term.Shell {
 	ioSh := sh.NewSubShell(term.Command{Name: "io", Desc: "Interact with IO expansion chips over I2C.", Init: func(ctx context.Context, exec term.CmdFunc) error {
 		f := term.Flags(ctx)
-		addr := f.Byte(term.Flag{Name: "addr", Short: 'd', Def: "0x20", Env: "DEV", Desc: "Device addresss.", Req: true})
+		addr := f.Uint16(term.Flag{Name: "addr", Short: 'd', Def: "0x20", Env: "DEV", Desc: "Device addresss.", Req: true})
 		pinN := f.Int(term.Flag{Name: "pins", Short: 'p', Def: "8", Desc: "Pin count.", Req: true})
 		if err := f.Parse(); err != nil {
 			return err
 		}
 
-		var dev *ioexp.Device
-		bus := ctx.Value(ctxKeyI2C).(ioexp.I2C)
+		var dev ioexp.PinReadWriter
+		bus := ctx.Value(ctxKeyI2C).(i2c.Bus)
 
 		switch *pinN {
 		case 8:
@@ -43,8 +44,8 @@ var ioCommands = []term.Command{
 			return err
 		}
 
-		dev := ctx.Value(ctxKeyIO).(*ioexp.Device)
-		pins, err := dev.Pins()
+		dev := ctx.Value(ctxKeyIO).(ioexp.PinReadWriter)
+		pins, err := dev.ReadPins()
 		if err != nil {
 			return err
 		}
@@ -53,7 +54,7 @@ var ioCommands = []term.Command{
 		t.AddRow("0", "1", "2", "3", "4", "5", "6", "7")
 		var state []string
 		for i := 0; i < 8; i++ {
-			if pins.Get(i) {
+			if pins.Value(i) {
 				state = append(state, "H")
 			} else {
 				state = append(state, "L")
@@ -71,14 +72,14 @@ var ioCommands = []term.Command{
 			return err
 		}
 
-		dev := ctx.Value(ctxKeyIO).(*ioexp.Device)
-		pins, err := dev.Pins()
+		dev := ctx.Value(ctxKeyIO).(ioexp.PinReadWriter)
+		pins, err := dev.ReadPins()
 		if err != nil {
 			return err
 		}
 		for _, a := range term.Flags(ctx).Args() {
 			if a == "all" {
-				pins = 0xff
+				pins.SetAll(true)
 				break
 			}
 			n, err := strconv.Atoi(a)
@@ -88,7 +89,7 @@ var ioCommands = []term.Command{
 
 			pins.Set(n, true)
 		}
-		return dev.SetPins(pins)
+		return dev.WritePins(pins)
 	}},
 
 	{Name: "off", Desc: "Turn off selected pin(s).", Exec: func(ctx context.Context) error {
@@ -96,14 +97,14 @@ var ioCommands = []term.Command{
 			return err
 		}
 
-		dev := ctx.Value(ctxKeyIO).(*ioexp.Device)
-		pins, err := dev.Pins()
+		dev := ctx.Value(ctxKeyIO).(ioexp.PinReadWriter)
+		pins, err := dev.ReadPins()
 		if err != nil {
 			return err
 		}
 		for _, a := range term.Flags(ctx).Args() {
 			if a == "all" {
-				pins = 0
+				pins.SetAll(false)
 				break
 			}
 			n, err := strconv.Atoi(a)
@@ -113,7 +114,7 @@ var ioCommands = []term.Command{
 
 			pins.Set(n, false)
 		}
-		return dev.SetPins(pins)
+		return dev.WritePins(pins)
 	}},
 
 	{Name: "set", Desc: "Turn on ONLY selected pin(s).", Exec: func(ctx context.Context) error {
@@ -121,11 +122,11 @@ var ioCommands = []term.Command{
 			return err
 		}
 
-		dev := ctx.Value(ctxKeyIO).(*ioexp.Device)
-		var pins ioexp.Pins
+		dev := ctx.Value(ctxKeyIO).(ioexp.PinReadWriter)
+		var pins ioexp.Pin8
 		for _, a := range term.Flags(ctx).Args() {
 			if a == "all" {
-				pins = 0xff
+				pins.SetAll(true)
 				break
 			}
 			n, err := strconv.Atoi(a)
@@ -135,7 +136,7 @@ var ioCommands = []term.Command{
 
 			pins.Set(n, true)
 		}
-		return dev.SetPins(pins)
+		return dev.WritePins(pins)
 	}},
 
 	{Name: "toggle", Desc: "Toggle selected pin(s).", Exec: func(ctx context.Context) error {
@@ -143,14 +144,14 @@ var ioCommands = []term.Command{
 			return err
 		}
 
-		dev := ctx.Value(ctxKeyIO).(*ioexp.Device)
-		pins, err := dev.Pins()
+		dev := ctx.Value(ctxKeyIO).(ioexp.PinReadWriter)
+		pins, err := dev.ReadPins()
 		if err != nil {
 			return err
 		}
 		for _, a := range term.Flags(ctx).Args() {
 			if a == "all" {
-				pins = ^pins
+				pins.ToggleAll()
 				continue
 			}
 			n, err := strconv.Atoi(a)
@@ -158,8 +159,8 @@ var ioCommands = []term.Command{
 				return err
 			}
 
-			pins.Set(n, !pins.Get(n))
+			pins.Toggle(n)
 		}
-		return dev.SetPins(pins)
+		return dev.WritePins(pins)
 	}},
 }

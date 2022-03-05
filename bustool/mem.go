@@ -3,30 +3,43 @@ package bustool
 import (
 	"context"
 	"encoding/hex"
+	"io"
 	"math/rand"
 
 	"github.com/mastercactapus/embedded/driver/eeprom"
+	"github.com/mastercactapus/embedded/driver/mem"
 	"github.com/mastercactapus/embedded/term"
 )
 
 func AddMem(sh *term.Shell) *term.Shell {
 	memSh := sh.NewSubShell(term.Command{Name: "mem", Desc: "Interact with an AT24Cxx-compatible EEPROM device over I2C.", Init: func(ctx context.Context, exec term.CmdFunc) error {
 		f := term.Flags(ctx)
-		addr := f.Byte(term.Flag{Name: "dev", Short: 'd', Def: "0x50", Env: "DEV", Desc: "Device addresss.", Req: true})
-		mem := f.Int(term.Flag{Name: "size", Short: 'm', Def: "1", Desc: "Memory size in kbits.", Req: true})
+		addr := f.Uint16(term.Flag{Name: "dev", Short: 'd', Def: "0x50", Env: "DEV", Desc: "Device addresss.", Req: true})
+		size := f.Int(term.Flag{Name: "size", Short: 'm', Def: "1", Desc: "Memory size in kbits.", Req: true})
 		if err := f.Parse(); err != nil {
 			return err
 		}
 
-		var dev *eeprom.Device
+		var dev io.ReadWriteSeeker
 		bus := ctx.Value(ctxKeyI2C).(eeprom.I2C)
 
-		switch *mem {
+		switch *size {
 		case 1:
-			dev = eeprom.NewAT24C01(bus, *addr)
+			dev = mem.NewAT24C01A(bus, *addr)
+		case 2:
+			dev = mem.NewAT24C02(bus, *addr)
+		case 4:
+			dev = mem.NewAT24C04(bus, *addr)
+		case 8:
+			dev = mem.NewAT24C08(bus, *addr)
+		case 16:
+			dev = mem.NewAT24C16(bus, *addr)
+		case 32:
+			dev = mem.NewAT24C32(bus, *addr)
+		case 64:
+			dev = mem.NewAT24C64(bus, *addr)
 		default:
-
-			return f.UsageError("unsupported memory size %d", mem)
+			return f.UsageError("unsupported memory size %d", *size)
 		}
 
 		return exec(context.WithValue(ctx, ctxKeyMem, dev))
