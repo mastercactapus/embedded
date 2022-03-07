@@ -2,7 +2,6 @@ package term
 
 import (
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 
@@ -27,8 +26,7 @@ type (
 )
 
 type (
-	Flags2  = FlagSet
-	FlagSet struct {
+	Flags struct {
 		cmd *CmdLine
 		set *getopt.Set
 		env func(string) (string, bool)
@@ -49,40 +47,24 @@ type flagExample struct {
 	Cmdline string
 	Desc    string
 }
-type usageErr struct {
-	fs  *FlagSet
-	err error
-}
 
-func (e usageErr) Error() string {
-	if e.err != nil {
-		return e.err.Error()
-	}
-
-	return "usage requested"
-}
-
-func (e usageErr) PrintUsage(w io.Writer) {
-	e.fs.set.PrintUsage(w)
-}
-
-func NewFlagSet(cmd *CmdLine, env func(string) (string, bool)) *FlagSet {
-	fs := &FlagSet{cmd: cmd, env: env, set: getopt.New()}
+func NewFlagSet(cmd *CmdLine, env func(string) (string, bool)) *Flags {
+	fs := &Flags{cmd: cmd, env: env, set: getopt.New()}
 
 	fs.flag(Flag{Name: "help", Short: 'h', Desc: "Show this help message"}, flagVal{&fs.showHelp}).SetFlag()
 	return fs
 }
 
 // SetHelpParameters sets the parameters for the usage output.
-func (fs *FlagSet) SetHelpParameters(s string) {
+func (fs *Flags) SetHelpParameters(s string) {
 	fs.set.SetParameters(s)
 }
 
-func (fs *FlagSet) Example(cmdline, desc string) {
+func (fs *Flags) Example(cmdline, desc string) {
 	fs.examples = append(fs.examples, flagExample{cmdline, desc})
 }
 
-func (fs *FlagSet) Parse() error {
+func (fs *Flags) Parse() error {
 	err := fs.set.Getopt(fs.cmd.Args, nil)
 	if err != nil {
 		return usageErr{fs: fs, err: err}
@@ -104,11 +86,11 @@ func (fs *FlagSet) Parse() error {
 	return nil
 }
 
-func (fs *FlagSet) UsageError(format string, a ...interface{}) error {
+func (fs *Flags) UsageError(format string, a ...interface{}) error {
 	return usageErr{fs: fs, err: fmt.Errorf(format, a...)}
 }
 
-func (fs *FlagSet) flag(f Flag, v getopt.Value) getopt.Option {
+func (fs *Flags) flag(f Flag, v getopt.Value) getopt.Option {
 	if f.Env != "" {
 		envVal, _ := fs.env(f.Env)
 		if envVal != "" {
@@ -127,15 +109,15 @@ func (fs *FlagSet) flag(f Flag, v getopt.Value) getopt.Option {
 	return opt
 }
 
-func (fs *FlagSet) Args() []string {
+func (fs *Flags) Args() []string {
 	return fs.set.Args()
 }
 
-func (fs *FlagSet) Arg(n int) string {
+func (fs *Flags) Arg(n int) string {
 	return fs.set.Arg(n)
 }
 
-func (fs *FlagSet) Enum(f Flag, vals ...string) *string {
+func (fs *Flags) Enum(f Flag, vals ...string) *string {
 	if f.Env != "" {
 		envVal, _ := fs.env(f.Env)
 		if envVal != "" {
@@ -154,37 +136,37 @@ func (fs *FlagSet) Enum(f Flag, vals ...string) *string {
 	return str
 }
 
-func (fs *FlagSet) Bytes(f Flag) *[]byte {
+func (fs *Flags) Bytes(f Flag) *[]byte {
 	var v []byte
 	fs.flag(f, flagVal{&v})
 	return &v
 }
 
-func (fs *FlagSet) String(f Flag) *string {
+func (fs *Flags) String(f Flag) *string {
 	var v string
 	fs.flag(f, flagVal{&v})
 	return &v
 }
 
-func (fs *FlagSet) Bool(f Flag) *bool {
+func (fs *Flags) Bool(f Flag) *bool {
 	var v bool
 	fs.flag(f, flagVal{&v}).SetFlag()
 	return &v
 }
 
-func (fs *FlagSet) Int(f Flag) *int {
+func (fs *Flags) Int(f Flag) *int {
 	var v int
 	fs.flag(f, flagVal{&v})
 	return &v
 }
 
-func (fs *FlagSet) Uint16(f Flag) *uint16 {
+func (fs *Flags) Uint16(f Flag) *uint16 {
 	var v uint16
 	fs.flag(f, flagVal{&v})
 	return &v
 }
 
-func (fs *FlagSet) Byte(f Flag) *byte {
+func (fs *Flags) Byte(f Flag) *byte {
 	var v byte
 	fs.flag(f, flagVal{&v})
 	return &v

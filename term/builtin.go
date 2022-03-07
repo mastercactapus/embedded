@@ -8,11 +8,11 @@ import (
 	"github.com/mastercactapus/embedded/term/ansi"
 )
 
-var builtin []Command2
+var builtin []Command
 
 func init() {
 	builtin = append(builtin,
-		Command2{Name: "help", Desc: "Display this help message", Exec: func(r RunArgs) error {
+		Command{Name: "help", Desc: "Display this help message", Exec: func(r RunArgs) error {
 			if err := r.Parse(); err != nil {
 				return err
 			}
@@ -60,7 +60,7 @@ func init() {
 			r.Print(tb.String())
 			return nil
 		}},
-		Command2{Name: "clear", Desc: "Clear the screen.", Exec: func(r RunArgs) error {
+		Command{Name: "clear", Desc: "Clear the screen.", Exec: func(r RunArgs) error {
 			if err := r.Parse(); err != nil {
 				return err
 			}
@@ -68,7 +68,7 @@ func init() {
 			r.Esc('J', 2)
 			return nil
 		}},
-		Command2{Name: "export", Desc: "Export envronment variables.", Exec: func(r RunArgs) error {
+		Command{Name: "export", Desc: "Export envronment variables.", Exec: func(r RunArgs) error {
 			r.SetHelpParameters("[name=[value]] ...]")
 			r.Example("export FOO=1", "Set the FOO variable to 1.")
 			r.Example("export FOO=", "Clear the FOO variable.")
@@ -99,7 +99,7 @@ func init() {
 
 			return nil
 		}},
-		Command2{Name: "env", Desc: "Print shell environment values.", Exec: func(r RunArgs) error {
+		Command{Name: "env", Desc: "Print shell environment values.", Exec: func(r RunArgs) error {
 			if err := r.Parse(); err != nil {
 				return err
 			}
@@ -112,7 +112,7 @@ func init() {
 			return nil
 		}},
 
-		Command2{Name: "exit", Desc: "Exits the current shell.", Exec: func(r RunArgs) error {
+		Command{Name: "exit", Desc: "Exits the current shell.", Exec: func(r RunArgs) error {
 			errMsg := r.String(Flag{Short: 'm', Desc: "Exit shell with an error message."})
 			if err := r.Parse(); err != nil {
 				return err

@@ -7,8 +7,8 @@ import (
 	"github.com/mastercactapus/embedded/term"
 )
 
-func AddI2C(sh *term.Shell2, bus *i2c.I2C) *term.Shell2 {
-	i2cSh := sh.NewSubShell(term.Command2{Name: "i2c", Desc: "Interact with I2C devices.", Exec: func(r term.RunArgs) error {
+func AddI2C(sh *term.Shell, bus *i2c.I2C) *term.Shell {
+	i2cSh := sh.NewSubShell(term.Command{Name: "i2c", Desc: "Interact with I2C devices.", Exec: func(r term.RunArgs) error {
 		if err := r.Parse(); err != nil {
 			return err
 		}
@@ -23,7 +23,7 @@ func AddI2C(sh *term.Shell2, bus *i2c.I2C) *term.Shell2 {
 	return i2cSh
 }
 
-var i2cCommands = []term.Command2{
+var i2cCommands = []term.Command{
 	{Name: "ping", Desc: "Ping a device.", Exec: func(r term.RunArgs) error {
 		addr := r.Byte(term.Flag{Name: "dev", Short: 'd', Env: "DEV", Desc: "Device addresss.", Req: true})
 		write := r.Bool(term.Flag{Short: 'w', Desc: "Ping the write address instead."})

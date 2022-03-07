@@ -8,8 +8,8 @@ import (
 	"github.com/mastercactapus/embedded/term"
 )
 
-func AddLCD(sh *term.Shell2) *term.Shell2 {
-	lcdSh := sh.NewSubShell(term.Command2{Name: "lcd", Desc: "Interact with an LCD display over I2C.", Exec: func(r term.RunArgs) error {
+func AddLCD(sh *term.Shell) *term.Shell {
+	lcdSh := sh.NewSubShell(term.Command{Name: "lcd", Desc: "Interact with an LCD display over I2C.", Exec: func(r term.RunArgs) error {
 		addr := r.Uint16(term.Flag{Name: "addr", Short: 'd', Def: "0x27", Env: "DEV", Desc: "Device addresss.", Req: true})
 		if err := r.Parse(); err != nil {
 			return err
@@ -33,7 +33,7 @@ func AddLCD(sh *term.Shell2) *term.Shell2 {
 	return lcdSh
 }
 
-var lcdCommands = []term.Command2{
+var lcdCommands = []term.Command{
 	{Name: "on", Desc: "Turn on the backlight.", Exec: func(r term.RunArgs) error {
 		if err := r.Parse(); err != nil {
 			return err

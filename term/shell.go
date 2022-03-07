@@ -2,157 +2,202 @@ package term
 
 import (
 	"bufio"
-	"context"
+	"errors"
 	"io"
-	"sort"
 
 	"github.com/mastercactapus/embedded/term/ansi"
 )
 
 type Shell struct {
+	name, desc string
+
 	parent *Shell
+	prompt *Prompt
+	w      *ansi.Printer
+	r      io.RuneReader
 
-	name string
-	desc string
+	commands []Command
+	shells   []Command
 
-	r *bufio.Reader
-	w *newliner
-	p *ansi.Printer
+	noExit bool
 
-	lastWByte byte
-
-	err error
-
-	lastCmdErr error
-
-	bNames   []string
-	shNames  []string
-	cmdNames []string
-
-	cmds map[string]*cmdData
-
-	env *Env
+	env    *Env
+	values map[string]interface{}
 }
 
-func (sh *Shell) dir() string {
-	if sh.parent == nil {
-		return "/"
-	}
-
-	return sh.parent.dir() + sh.parent.name + "/"
-}
-
-func NewShell(name, desc string, r io.Reader, w io.Writer) *Shell {
-	if name == "" {
-		name = "default"
-	}
-
-	nl, ok := w.(*newliner)
-	if !ok {
-		nl = &newliner{Writer: bufio.NewWriter(w)}
-	}
-
+func NewRootShell(name, desc string, in io.Reader, out io.Writer) *Shell {
+	p := ansi.NewPrinter(out)
 	sh := &Shell{
 		name: name,
 		desc: desc,
-		r:    bufio.NewReader(r),
-		w:    nl,
-		cmds: make(map[string]*cmdData),
+		w:    p,
+		r:    bufio.NewReader(in),
 		env:  NewEnv(),
 	}
-	sh.p = ansi.NewPrinter(sh.w)
-
-	for _, cmd := range builtins {
-		sh.cmds[cmd.Name] = &cmdData{Command: cmd, sh: sh}
-		sh.bNames = append(sh.bNames, cmd.Name)
-	}
+	sh.prompt = NewPrompt(p, sh.path()+"> ")
 
 	return sh
 }
 
-type exitErr struct{ error }
+func (sh *Shell) SetNoExit(v bool) { sh.noExit = v }
 
-func launchSubShell(ctx context.Context) error {
-	if err := Flags(ctx).Parse(); err != nil {
-		return err
+func (sh *Shell) Run() error {
+	sh.prompt.Draw()
+	for {
+		r, _, err := sh.r.ReadRune()
+		if err != nil {
+			return err
+		}
+
+		cmdLine, err := sh.prompt.NextCommand(r)
+		if errors.Is(err, ErrInterrupt) {
+			sh.prompt.Draw()
+			continue
+		}
+		if cmdLine == nil {
+			continue
+		}
+
+		cmd := sh.findCommand(cmdLine.Args[0])
+		if cmd == nil {
+			sh.w.Println("Unknown command: '" + cmdLine.Args[0] + "' try 'help'.")
+			sh.prompt.Draw()
+			continue
+		}
+
+		err = sh.runCommand(cmd, cmdLine)
+		var exit exitErr
+		var usage usageErr
+		switch {
+		case errors.As(err, &exit):
+			return exit.error
+		case errors.As(err, &usage):
+			sh.printUsage(cmd, usage)
+		case err != nil:
+			sh.w.Fg(ansi.Red)
+			sh.w.Println(err)
+		}
+		sh.prompt.Draw()
 	}
-
-	cmd := ctx.Value(ctxKeyCmd).(*cmdContext)
-	return cmd.sh.Exec(ctx)
 }
 
-func (sh *Shell) NewSubShell(cmd Command) *Shell {
-	if _, ok := sh.cmds[cmd.Name]; ok {
-		panic("command already exists: " + cmd.Name)
-	}
-
-	subSh := NewShell(cmd.Name, cmd.Desc, sh.r, sh.w)
-	subSh.parent = sh
-	subSh.env.SetParent(sh.env)
-	cmd.Exec = launchSubShell
-
-	sh.cmds[cmd.Name] = &cmdData{Command: cmd, sh: subSh, isShell: true}
-	sh.shNames = append(sh.shNames, cmd.Name)
-	sort.Strings(sh.shNames)
-
-	return subSh
-}
-
-func (sh *Shell) AddCommand(cmd Command) {
-	if _, ok := sh.cmds[cmd.Name]; ok {
-		panic("command already exists: " + cmd.Name)
-	}
-
-	sh.cmds[cmd.Name] = &cmdData{Command: cmd, sh: sh}
-
-	sh.cmdNames = append(sh.cmdNames, cmd.Name)
-	sort.Strings(sh.cmdNames)
-}
-
-func (sh *Shell) prompt(input string) {
-	defer sh.w.Flush()
-
-	sh.p.ClearLine()
-	sh.p.Reset()
-	sh.p.Print(sh.dir() + sh.name)
-
-	if sh.lastCmdErr != nil {
-		sh.p.Fg(ansi.Red)
-		sh.p.Print(" [")
-		sh.p.Font(ansi.Bold)
-		sh.p.Print("ERR")
-		sh.p.Font(ansi.Normal)
-		sh.p.Fg(ansi.Red)
-		sh.p.Print("]")
-		sh.p.Reset()
-	}
-
-	sh.p.Print("> " + input)
-}
-
-func (sh *Shell) WriteByte(p byte) error {
-	if sh.err != nil {
-		return sh.err
-	}
-	if p == 0 {
+func (sh *Shell) findCommand(name string) *Command {
+	if sh.noExit && name == "exit" {
 		return nil
 	}
 
-	if p == '\n' && sh.lastWByte != '\r' {
-		sh.w.WriteByte('\r')
+	for _, cmd := range sh.commands {
+		if cmd.Name != name {
+			continue
+		}
+
+		return &cmd
 	}
 
-	return sh.w.WriteByte(p)
+	for _, cmd := range sh.shells {
+		if cmd.Name != name {
+			continue
+		}
+
+		return &cmd
+	}
+
+	for _, cmd := range builtin {
+		if cmd.Name != name {
+			continue
+		}
+
+		return &cmd
+	}
+
+	return nil
 }
 
-func (sh *Shell) Write(p []byte) (int, error) {
-	if sh.err != nil {
-		return 0, sh.err
+func (sh *Shell) printUsage(cmd *Command, usage usageErr) {
+	if usage.err != nil {
+		sh.w.Fg(ansi.Red)
+		sh.w.Println(usage.err.Error())
+		sh.w.Reset()
 	}
 
-	for _, b := range p {
-		sh.err = sh.WriteByte(b)
+	if cmd.Desc != "" {
+		sh.w.Println(cmd.Desc)
+		sh.w.Println()
 	}
 
-	return len(p), sh.err
+	usage.PrintUsage(sh.w)
+}
+
+func (sh *Shell) runCommand(cmd *Command, cmdline *CmdLine) error {
+	if cmd.Exec != nil {
+		err := cmd.Exec(RunArgs{
+			Flags:   NewFlagSet(cmdline, sh.env.Get),
+			Printer: sh.w,
+			sh:      sh,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	if cmd.sh == nil {
+		return nil
+	}
+
+	return cmd.sh.Run()
+}
+
+func (sh *Shell) setValue(k string, v interface{}) {
+	if sh.values == nil {
+		sh.values = make(map[string]interface{})
+	}
+	sh.values[k] = v
+}
+
+func (sh *Shell) getValue(k string) interface{} {
+	if sh.values != nil {
+		if v, ok := sh.values[k]; ok {
+			return v
+		}
+	}
+
+	if sh.parent != nil {
+		return sh.parent.getValue(k)
+	}
+
+	return nil
+}
+
+func (sh *Shell) path() string {
+	var parentName string
+	if sh.parent != nil {
+		parentName = sh.parent.path()
+	}
+
+	return parentName + "/" + sh.name
+}
+
+func (sh *Shell) AddCommand(cmd Command) {
+	if sh.findCommand(cmd.Name) != nil {
+		panic("Duplicate command: " + cmd.Name)
+	}
+	sh.commands = append(sh.commands, cmd)
+}
+
+func (sh *Shell) NewSubShell(cmd Command) *Shell {
+	if sh.findCommand(cmd.Name) != nil {
+		panic("Duplicate command: " + cmd.Name)
+	}
+	cmd.sh = &Shell{
+		name:   cmd.Name,
+		desc:   cmd.Desc,
+		parent: sh,
+		w:      sh.w,
+		r:      sh.r,
+		env:    NewEnv(),
+	}
+	cmd.sh.env.SetParent(sh.env)
+	cmd.sh.prompt = NewPrompt(sh.w, cmd.sh.path()+"> ")
+	sh.shells = append(sh.shells, cmd)
+	return cmd.sh
 }
