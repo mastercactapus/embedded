@@ -1,6 +1,9 @@
 package main
 
-import "io"
+import (
+	"io"
+	"time"
+)
 
 type fixReader struct {
 	io.Reader
@@ -11,6 +14,9 @@ func (f *fixReader) Read(p []byte) (n int, err error) {
 		n, err = f.Reader.Read(p)
 		if err != nil {
 			return n, err
+		}
+		if n == 0 {
+			time.Sleep(10 * time.Millisecond)
 		}
 	}
 
