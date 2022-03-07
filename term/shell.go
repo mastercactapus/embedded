@@ -14,7 +14,7 @@ type Shell struct {
 	parent *Shell
 	prompt *Prompt
 	w      *ansi.Printer
-	r      io.RuneReader
+	r      chan rune
 
 	commands []Command
 	shells   []Command
@@ -31,10 +31,18 @@ func NewRootShell(name, desc string, in io.Reader, out io.Writer) *Shell {
 		name: name,
 		desc: desc,
 		w:    p,
-		r:    bufio.NewReader(&fixReader{in}),
+		r:    make(chan rune),
 		env:  NewEnv(),
 	}
 	sh.prompt = NewPrompt(p, sh.path()+"> ")
+
+	go func() {
+		r := bufio.NewReader(&fixReader{Reader: in, wait: sh.r})
+		for {
+			r, _, _ := r.ReadRune()
+			sh.r <- r
+		}
+	}()
 
 	return sh
 }
@@ -44,12 +52,7 @@ func (sh *Shell) SetNoExit(v bool) { sh.noExit = v }
 func (sh *Shell) Run() error {
 	sh.prompt.Draw()
 	for {
-		r, _, err := sh.r.ReadRune()
-		if err != nil {
-			return err
-		}
-
-		cmdLine, err := sh.prompt.NextCommand(r)
+		cmdLine, err := sh.prompt.NextCommand(<-sh.r)
 		if errors.Is(err, ErrInterrupt) {
 			sh.prompt.Draw()
 			continue

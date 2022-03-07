@@ -8,16 +8,19 @@ import (
 // fixReader fixes broken reader implementations.
 type fixReader struct {
 	io.Reader
+
+	wait chan rune
 }
 
 func (f *fixReader) Read(p []byte) (n int, err error) {
 	for n == 0 {
+		f.wait <- 0
 		n, err = f.Reader.Read(p)
 		if err != nil {
 			return n, err
 		}
 		if n == 0 {
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(time.Millisecond)
 		}
 	}
 

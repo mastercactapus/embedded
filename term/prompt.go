@@ -113,6 +113,11 @@ func (p *Prompt) updateLine(abort func() bool) (aborted bool) {
 }
 
 func (p *Prompt) NextCommand(r rune) (*CmdLine, error) {
+	if r == 0 {
+		// special case, ignore entirely
+		// used to signal we are processing input
+		return nil, nil
+	}
 	drawInt := p.draw.Interrupt()
 	defer p.draw.Run()
 
