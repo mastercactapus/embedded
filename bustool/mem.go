@@ -1,7 +1,9 @@
 package bustool
 
 import (
+	"encoding/binary"
 	"encoding/hex"
+	"hash/crc32"
 	"io"
 	"math/rand"
 
@@ -101,6 +103,17 @@ var MemCommands = []term.Command{
 			return err
 		}
 
+		return nil
+	}},
+	{Name: "crc", Desc: "Calculate CRC value of bytes.", Exec: func(r term.RunArgs) error {
+		if err := r.Parse(); err != nil {
+			return err
+		}
+
+		crc := crc32.ChecksumIEEE([]byte(r.Arg(0)))
+		data := make([]byte, 4)
+		binary.LittleEndian.PutUint32(data, crc)
+		r.Printf("CRC: 0x%02x 0x%02x 0x%02x 0x%02x\n", data[0], data[1], data[2], data[3])
 		return nil
 	}},
 	{Name: "format", Desc: "Clear all data.", Exec: func(r term.RunArgs) error {

@@ -29,6 +29,18 @@ func (p Pin16) Value(n int) bool {
 	return (p & (1 << n)) != 0
 }
 
+func (p *Pin16) High(n ...int) {
+	for _, i := range n {
+		p.Set(i, true)
+	}
+}
+
+func (p *Pin16) Low(n ...int) {
+	for _, i := range n {
+		p.Set(i, false)
+	}
+}
+
 func (p *Pin16) Set(n int, v bool) {
 	if n < 0 || n >= 16 {
 		return

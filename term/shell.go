@@ -129,15 +129,13 @@ func (sh *Shell) printUsage(cmd *Command, usage usageErr) {
 }
 
 func (sh *Shell) runCommand(cmd *Command, cmdline *CmdLine) error {
-	if cmd.Exec != nil {
-		err := cmd.Exec(RunArgs{
-			Flags:   NewFlagSet(cmdline, sh.env.Get),
-			Printer: sh.w,
-			sh:      sh,
-		})
-		if err != nil {
-			return err
-		}
+	err := cmd.Exec(RunArgs{
+		Flags:   NewFlagSet(cmdline, sh.env.Get),
+		Printer: sh.w,
+		sh:      sh,
+	})
+	if err != nil {
+		return err
 	}
 
 	if cmd.sh == nil {
@@ -178,11 +176,15 @@ func (sh *Shell) path() string {
 
 	return parentName + "/" + sh.name
 }
+func defaultExec(ra RunArgs) error { return ra.Parse() }
 
 func (sh *Shell) AddCommands(cmds ...Command) {
 	for _, cmd := range cmds {
 		if sh.findCommand(cmd.Name) != nil {
 			panic("Duplicate command: " + cmd.Name)
+		}
+		if cmd.Exec == nil {
+			cmd.Exec = defaultExec
 		}
 		sh.commands = append(sh.commands, cmd)
 	}
@@ -207,6 +209,9 @@ func (sh *Shell) NewSubShell(name, desc string, init func(RunArgs) error) *Shell
 	}
 	cmd.sh.env.SetParent(sh.env)
 	cmd.sh.prompt = NewPrompt(sh.w, cmd.sh.path()+"> ")
+	if cmd.Exec == nil {
+		cmd.Exec = defaultExec
+	}
 	sh.shells = append(sh.shells, cmd)
 	return cmd.sh
 }
