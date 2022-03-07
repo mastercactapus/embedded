@@ -27,13 +27,13 @@ type Shell2 struct {
 func NewRootShell(name, desc string, in io.Reader, out io.Writer) *Shell2 {
 	p := ansi.NewPrinter(out)
 	sh := &Shell2{
-		name:   name,
-		desc:   desc,
-		w:      p,
-		r:      bufio.NewReader(in),
-		prompt: NewPrompt(p, name+"> "),
-		env:    NewEnv(),
+		name: name,
+		desc: desc,
+		w:    p,
+		r:    bufio.NewReader(in),
+		env:  NewEnv(),
 	}
+	sh.prompt = NewPrompt(p, sh.path()+"> ")
 
 	return sh
 }
@@ -122,11 +122,22 @@ func (sh *Shell2) printUsage(cmd *Command2, usage usageErr) {
 }
 
 func (sh *Shell2) runCommand(cmd *Command2, cmdline *CmdLine) error {
-	return cmd.Exec(RunArgs{
-		Flags2:  NewFlagSet(cmdline, sh.env.Get),
-		Printer: sh.w,
-		sh:      sh,
-	})
+	if cmd.Exec != nil {
+		err := cmd.Exec(RunArgs{
+			Flags2:  NewFlagSet(cmdline, sh.env.Get),
+			Printer: sh.w,
+			sh:      sh,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	if cmd.sh == nil {
+		return nil
+	}
+
+	return cmd.sh.Run()
 }
 
 type Command2 struct {
@@ -147,7 +158,7 @@ type RunArgs struct {
 func (r *RunArgs) Get(k string) interface{} {
 	val := r.sh.getValue(k)
 	if val == nil {
-		panic(fmt.Sprintf("%s/%s: %s: get '%s': not set in this or parent shell", r.sh.path(), r.sh.name, r.Flags2.cmd.Args[0], k))
+		panic(fmt.Sprintf("shell=%s: cmd=%s: get '%s': not set in this or parent shell", r.sh.path(), r.Flags2.cmd.Args[0], k))
 	}
 	return val
 }
@@ -177,7 +188,7 @@ func (sh *Shell2) getValue(k string) interface{} {
 func (sh *Shell2) path() string {
 	var parentName string
 	if sh.parent != nil {
-		return sh.parent.path()
+		parentName = sh.parent.path()
 	}
 
 	return parentName + "/" + sh.name
@@ -195,8 +206,11 @@ func (sh *Shell2) NewSubShell(cmd Command2) *Shell2 {
 		panic("Duplicate command: " + cmd.Name)
 	}
 	cmd.sh = &Shell2{
+		name:   cmd.Name,
+		desc:   cmd.Desc,
 		parent: sh,
 		w:      sh.w,
+		r:      sh.r,
 		env:    NewEnv(),
 	}
 	cmd.sh.env.SetParent(sh.env)

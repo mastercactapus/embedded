@@ -11,6 +11,9 @@ import (
 func main() {
 	sh := term.NewRootShell("testshell", "Testing basic shell functionality", os.Stdin, os.Stdout)
 	sh.AddCommand(term.Command2{Name: "test", Desc: "test command", Exec: func(r term.RunArgs) error {
+		if err := r.Parse(); err != nil {
+			return err
+		}
 		r.Println("hello world")
 		return nil
 	}})

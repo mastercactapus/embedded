@@ -43,6 +43,7 @@ func NewPrompt(w *ansi.Printer, prompt string) *Prompt {
 }
 
 func (p *Prompt) Draw() {
+	p.w.Reset()
 	p.w.Print(p.prefix)
 	p.w.Print(string(p.input))
 	if p.pos < len(p.input) {
