@@ -26,16 +26,19 @@ type (
 	}
 )
 
-type FlagSet struct {
-	cmd *CmdLine
-	set *getopt.Set
-	env func(string) (string, bool)
+type (
+	Flags2  = FlagSet
+	FlagSet struct {
+		cmd *CmdLine
+		set *getopt.Set
+		env func(string) (string, bool)
 
-	args []argInfo
+		args []argInfo
 
-	examples []flagExample
-	showHelp bool
-}
+		examples []flagExample
+		showHelp bool
+	}
+)
 
 type argInfo struct {
 	Arg

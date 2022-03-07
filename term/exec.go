@@ -41,7 +41,7 @@ func (sh *Shell) Exec(ctx context.Context) error {
 				if pos > 0 {
 					input = append(input[:pos-1], input[pos:]...)
 					pos--
-					sh.p.CurLt(1)
+					sh.p.CursorBack(1)
 					sh.p.EraseLine(ansi.CurToEnd)
 					sh.w.Flush()
 				}
@@ -88,7 +88,7 @@ func (sh *Shell) Exec(ctx context.Context) error {
 						n = pos
 					}
 					if n > 0 {
-						sh.p.CurLt(n)
+						sh.p.CursorBack(n)
 						pos -= n
 					}
 				case 'C':
@@ -100,7 +100,7 @@ func (sh *Shell) Exec(ctx context.Context) error {
 						n = len(input) - pos
 					}
 					if n > 0 {
-						sh.p.CurRt(n)
+						sh.p.CursorForward(n)
 						pos += n
 					}
 				}
