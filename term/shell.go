@@ -179,14 +179,21 @@ func (sh *Shell) path() string {
 	return parentName + "/" + sh.name
 }
 
-func (sh *Shell) AddCommand(cmd Command) {
-	if sh.findCommand(cmd.Name) != nil {
-		panic("Duplicate command: " + cmd.Name)
+func (sh *Shell) AddCommands(cmds ...Command) {
+	for _, cmd := range cmds {
+		if sh.findCommand(cmd.Name) != nil {
+			panic("Duplicate command: " + cmd.Name)
+		}
+		sh.commands = append(sh.commands, cmd)
 	}
-	sh.commands = append(sh.commands, cmd)
 }
 
-func (sh *Shell) NewSubShell(cmd Command) *Shell {
+func (sh *Shell) AddCommand(name, desc string, exec func(RunArgs) error) {
+	sh.AddCommands(Command{Name: name, Desc: desc, Exec: exec})
+}
+
+func (sh *Shell) NewSubShell(name, desc string, init func(RunArgs) error) *Shell {
+	cmd := Command{Name: name, Desc: desc, Exec: init}
 	if sh.findCommand(cmd.Name) != nil {
 		panic("Duplicate command: " + cmd.Name)
 	}

@@ -9,7 +9,7 @@ import (
 )
 
 func AddLCD(sh *term.Shell) *term.Shell {
-	lcdSh := sh.NewSubShell(term.Command{Name: "lcd", Desc: "Interact with an LCD display over I2C.", Exec: func(r term.RunArgs) error {
+	lcdSh := sh.NewSubShell("lcd", "Interact with an LCD display over I2C.", func(r term.RunArgs) error {
 		addr := r.Uint16(term.Flag{Name: "addr", Short: 'd', Def: "0x27", Env: "DEV", Desc: "Device addresss.", Req: true})
 		if err := r.Parse(); err != nil {
 			return err
@@ -25,15 +25,16 @@ func AddLCD(sh *term.Shell) *term.Shell {
 		r.Set("lcd", dev)
 
 		return nil
-	}})
+	})
 
-	for _, c := range lcdCommands {
-		lcdSh.AddCommand(c)
-	}
+	lcdSh.AddCommands(LCDCommands...)
 	return lcdSh
 }
 
-var lcdCommands = []term.Command{
+// LCDCommands are commands for interacting with an HD44780 display.
+//
+// The device must be available at the 'lcd' key.
+var LCDCommands = []term.Command{
 	{Name: "on", Desc: "Turn on the backlight.", Exec: func(r term.RunArgs) error {
 		if err := r.Parse(); err != nil {
 			return err

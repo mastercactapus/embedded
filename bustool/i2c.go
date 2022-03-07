@@ -8,18 +8,16 @@ import (
 )
 
 func AddI2C(sh *term.Shell, bus *i2c.I2C) *term.Shell {
-	i2cSh := sh.NewSubShell(term.Command{Name: "i2c", Desc: "Interact with I2C devices.", Exec: func(r term.RunArgs) error {
+	i2cSh := sh.NewSubShell("i2c", "Interact with I2C devices.", func(r term.RunArgs) error {
 		if err := r.Parse(); err != nil {
 			return err
 		}
 
 		r.Set("i2c", bus)
 		return nil
-	}})
+	})
 
-	for _, c := range i2cCommands {
-		i2cSh.AddCommand(c)
-	}
+	i2cSh.AddCommands(i2cCommands...)
 	return i2cSh
 }
 

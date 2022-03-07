@@ -17,7 +17,7 @@ type memDevice interface {
 }
 
 func AddMem(sh *term.Shell) *term.Shell {
-	memSh := sh.NewSubShell(term.Command{Name: "mem", Desc: "Interact with an AT24Cxx-compatible EEPROM device over I2C.", Exec: func(r term.RunArgs) error {
+	memSh := sh.NewSubShell("mem", "Interact with an AT24Cxx-compatible EEPROM device over I2C.", func(r term.RunArgs) error {
 		addr := r.Uint16(term.Flag{Name: "dev", Short: 'd', Def: "0x50", Env: "DEV", Desc: "Device addresss.", Req: true})
 		size := r.Int(term.Flag{Name: "size", Short: 'm', Def: "1", Desc: "Memory size in kbits.", Req: true})
 		if err := r.Parse(); err != nil {
@@ -48,11 +48,9 @@ func AddMem(sh *term.Shell) *term.Shell {
 		r.Set("mem", dev)
 
 		return nil
-	}})
+	})
 
-	for _, c := range memCommands {
-		memSh.AddCommand(c)
-	}
+	memSh.AddCommands(MemCommands...)
 	return memSh
 }
 
@@ -62,7 +60,7 @@ func size(s io.Seeker) int {
 	return int(size)
 }
 
-var memCommands = []term.Command{
+var MemCommands = []term.Command{
 	{Name: "r", Desc: "Read device data.", Exec: func(r term.RunArgs) error {
 		start := r.Int(term.Flag{Short: 's', Def: "0", Desc: "Position to start from.", Req: true})
 		count := r.Int(term.Flag{Short: 'n', Def: "0", Desc: "Number of bytes to read, if zero read to end."})

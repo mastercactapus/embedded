@@ -25,7 +25,7 @@ func pinMask(args []string) (ioexp.Valuer, error) {
 }
 
 func AddIO(sh *term.Shell) *term.Shell {
-	ioSh := sh.NewSubShell(term.Command{Name: "io", Desc: "Interact with IO expansion chips over I2C.", Exec: func(r term.RunArgs) error {
+	ioSh := sh.NewSubShell("io", "Interact with IO expansion chips over I2C.", func(r term.RunArgs) error {
 		addr := r.Uint16(term.Flag{Name: "addr", Short: 'd', Def: "0x20", Env: "DEV", Desc: "Device addresss.", Req: true})
 		devType := r.Enum(term.Flag{Name: "type", Short: 't', Def: "mcp", Desc: "IO device type.", Req: true}, "pcf", "mcp")
 		if err := r.Parse(); err != nil {
@@ -46,11 +46,9 @@ func AddIO(sh *term.Shell) *term.Shell {
 		r.Set("io", dev)
 
 		return nil
-	}})
+	})
 
-	for _, c := range ioCommands {
-		ioSh.AddCommand(c)
-	}
+	ioSh.AddCommands(ioCommands...)
 	return ioSh
 }
 
