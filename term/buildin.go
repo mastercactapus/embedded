@@ -27,6 +27,10 @@ func init() {
 
 			tb.AddLine("Built-in:")
 			for _, cmd := range builtin {
+				if r.sh.noExit && cmd.Name == "exit" {
+					continue
+				}
+
 				tb.AddRow("    "+cmd.Name, cmd.Desc)
 			}
 			tb.AddLine("")

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"machine"
 
 	"github.com/mastercactapus/embedded/bus/i2c"
@@ -17,6 +16,7 @@ func main() {
 	}
 
 	sh := bustool.NewShell(&fixReader{machine.Serial}, machine.Serial)
+	sh.SetNoExit(true)
 	bus, err := i2c.I2C0()
 	if err != nil {
 		panic(err)
@@ -26,7 +26,7 @@ func main() {
 	bustool.AddIO(i2cSh)
 	bustool.AddLCD(i2cSh)
 
-	err = sh.Exec(context.Background())
+	err = sh.Run()
 	if err != nil {
 		panic(err)
 	}

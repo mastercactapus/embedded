@@ -20,6 +20,8 @@ type Shell2 struct {
 	commands []Command2
 	shells   []Command2
 
+	noExit bool
+
 	env    *Env
 	values map[string]interface{}
 }
@@ -37,6 +39,8 @@ func NewRootShell(name, desc string, in io.Reader, out io.Writer) *Shell2 {
 
 	return sh
 }
+
+func (sh *Shell2) SetNoExit(v bool) { sh.noExit = v }
 
 func (sh *Shell2) Run() error {
 	sh.prompt.Draw()
@@ -79,6 +83,10 @@ func (sh *Shell2) Run() error {
 }
 
 func (sh *Shell2) findCommand(name string) *Command2 {
+	if sh.noExit && name == "exit" {
+		return nil
+	}
+
 	for _, cmd := range sh.commands {
 		if cmd.Name != name {
 			continue
