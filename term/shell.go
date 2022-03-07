@@ -147,14 +147,16 @@ func (sh *Shell) runCommand(cmd *Command, cmdline *CmdLine) error {
 	return cmd.sh.Run()
 }
 
-func (sh *Shell) setValue(k string, v interface{}) {
+// Set will set a value in the shell for all it's children.
+func (sh *Shell) Set(k string, v interface{}) {
 	if sh.values == nil {
 		sh.values = make(map[string]interface{})
 	}
 	sh.values[k] = v
 }
 
-func (sh *Shell) getValue(k string) interface{} {
+// Get will get a value from the shell or any of it's parents.
+func (sh *Shell) Get(k string) interface{} {
 	if sh.values != nil {
 		if v, ok := sh.values[k]; ok {
 			return v
@@ -162,7 +164,7 @@ func (sh *Shell) getValue(k string) interface{} {
 	}
 
 	if sh.parent != nil {
-		return sh.parent.getValue(k)
+		return sh.parent.Get(k)
 	}
 
 	return nil

@@ -14,10 +14,10 @@ type RunArgs struct {
 }
 
 func (r *RunArgs) Get(k string) interface{} {
-	val := r.sh.getValue(k)
+	val := r.sh.Get(k)
 	if val == nil {
 		panic(fmt.Sprintf("shell=%s: cmd=%s: get '%s': not set in this or parent shell", r.sh.path(), r.Flags.cmd.Args[0], k))
 	}
 	return val
 }
-func (r *RunArgs) Set(k string, v interface{}) { r.sh.setValue(k, v) }
+func (r *RunArgs) Set(k string, v interface{}) { r.sh.Set(k, v) }
