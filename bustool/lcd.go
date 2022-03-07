@@ -1,7 +1,6 @@
 package bustool
 
 import (
-	"context"
 	"io"
 
 	"github.com/mastercactapus/embedded/bus/i2c"
@@ -9,23 +8,23 @@ import (
 	"github.com/mastercactapus/embedded/term"
 )
 
-func AddLCD(sh *term.Shell) *term.Shell {
-	lcdSh := sh.NewSubShell(term.Command{Name: "lcd", Desc: "Interact with an LCD display over I2C.", Init: func(ctx context.Context, exec term.CmdFunc) error {
-		f := term.Flags(ctx)
-		addr := f.Uint16(term.Flag{Name: "addr", Short: 'd', Def: "0x27", Env: "DEV", Desc: "Device addresss.", Req: true})
-		if err := f.Parse(); err != nil {
+func AddLCD(sh *term.Shell2) *term.Shell2 {
+	lcdSh := sh.NewSubShell(term.Command2{Name: "lcd", Desc: "Interact with an LCD display over I2C.", Exec: func(r term.RunArgs) error {
+		addr := r.Uint16(term.Flag{Name: "addr", Short: 'd', Def: "0x27", Env: "DEV", Desc: "Device addresss.", Req: true})
+		if err := r.Parse(); err != nil {
 			return err
 		}
 
-		bus := ctx.Value(ctxKeyI2C).(i2c.Bus)
+		bus := r.Get("i2c").(i2c.Bus)
 		dev := lcd.NewHD44780I2C(bus, *addr)
 
 		err := dev.Init()
 		if err != nil {
 			return err
 		}
+		r.Set("lcd", dev)
 
-		return exec(context.WithValue(ctx, ctxKeyLCD, dev))
+		return nil
 	}})
 
 	for _, c := range lcdCommands {
@@ -34,47 +33,46 @@ func AddLCD(sh *term.Shell) *term.Shell {
 	return lcdSh
 }
 
-var lcdCommands = []term.Command{
-	{Name: "on", Desc: "Turn on the backlight.", Exec: func(ctx context.Context) error {
-		if err := term.Flags(ctx).Parse(); err != nil {
+var lcdCommands = []term.Command2{
+	{Name: "on", Desc: "Turn on the backlight.", Exec: func(r term.RunArgs) error {
+		if err := r.Parse(); err != nil {
 			return err
 		}
 
-		dev := ctx.Value(ctxKeyLCD).(*lcd.HD44780)
+		dev := r.Get("lcd").(*lcd.HD44780)
 		return dev.SetBacklight(true)
 	}},
-	{Name: "off", Desc: "Turn off the backlight.", Exec: func(ctx context.Context) error {
-		if err := term.Flags(ctx).Parse(); err != nil {
+	{Name: "off", Desc: "Turn off the backlight.", Exec: func(r term.RunArgs) error {
+		if err := r.Parse(); err != nil {
 			return err
 		}
 
-		dev := ctx.Value(ctxKeyLCD).(*lcd.HD44780)
+		dev := r.Get("lcd").(*lcd.HD44780)
 		return dev.SetBacklight(false)
 	}},
-	{Name: "cls", Desc: "Clear the screen.", Exec: func(ctx context.Context) error {
-		if err := term.Flags(ctx).Parse(); err != nil {
+	{Name: "cls", Desc: "Clear the screen.", Exec: func(r term.RunArgs) error {
+		if err := r.Parse(); err != nil {
 			return err
 		}
 
-		dev := ctx.Value(ctxKeyLCD).(*lcd.HD44780)
+		dev := r.Get("lcd").(*lcd.HD44780)
 		return dev.Clear()
 	}},
-	{Name: "w", Desc: "Write to the screen.", Exec: func(ctx context.Context) error {
-		f := term.Flags(ctx)
-		x := f.Byte(term.Flag{Short: 'x', Def: "0", Desc: "Cursor start X.", Req: true})
-		y := f.Byte(term.Flag{Short: 'y', Def: "0", Desc: "Cursor start Y.", Req: true})
-		if err := f.Parse(); err != nil {
+	{Name: "w", Desc: "Write to the screen.", Exec: func(r term.RunArgs) error {
+		x := r.Byte(term.Flag{Short: 'x', Def: "0", Desc: "Cursor start X.", Req: true})
+		y := r.Byte(term.Flag{Short: 'y', Def: "0", Desc: "Cursor start Y.", Req: true})
+		if err := r.Parse(); err != nil {
 			return err
 		}
 
-		dev := ctx.Value(ctxKeyLCD).(*lcd.HD44780)
+		dev := r.Get("lcd").(*lcd.HD44780)
 
 		err := dev.SetCursor(*x, *y)
 		if err != nil {
 			return err
 		}
 
-		_, err = io.WriteString(dev, f.Arg(0))
+		_, err = io.WriteString(dev, r.Arg(0))
 		return err
 	}},
 }

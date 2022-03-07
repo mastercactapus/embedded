@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"os"
 
@@ -8,7 +9,35 @@ import (
 )
 
 func main() {
-	sh := term.NewRootShell("testshell", os.Stdin, os.Stdout)
+	sh := term.NewRootShell("testshell", "Testing basic shell functionality", os.Stdin, os.Stdout)
+	sh.AddCommand(term.Command2{Name: "test", Desc: "test command", Exec: func(r term.RunArgs) error {
+		r.Println("hello world")
+		return nil
+	}})
+	sh.AddCommand(term.Command2{Name: "err", Desc: "err test command", Exec: func(r term.RunArgs) error {
+		return errors.New("error")
+	}})
+
+	sh.NewSubShell(term.Command2{Name: "subsherr", Desc: "subsh test command", Exec: func(r term.RunArgs) error {
+		return errors.New("error")
+	}})
+
+	subSh := sh.NewSubShell(term.Command2{Name: "subsh", Desc: "subsh test command", Exec: func(r term.RunArgs) error {
+		r.Set("foo", "bar")
+		return nil
+	}})
+
+	subSh.AddCommand(term.Command2{Name: "test", Desc: "test command", Exec: func(r term.RunArgs) error {
+		r.Println("hello world")
+		return nil
+	}})
+	subSh.AddCommand(term.Command2{Name: "err", Desc: "err test command", Exec: func(r term.RunArgs) error {
+		return errors.New("error")
+	}})
+	subSh.AddCommand(term.Command2{Name: "panictest", Desc: "err test command", Exec: func(r term.RunArgs) error {
+		r.Get("404")
+		return nil
+	}})
 
 	err := sh.Run()
 	if err != nil {

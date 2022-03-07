@@ -3,13 +3,14 @@ package term
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/mastercactapus/embedded/term/ansi"
 )
 
 type Shell2 struct {
-	name string
+	name, desc string
 
 	parent *Shell2
 	prompt *Prompt
@@ -23,10 +24,11 @@ type Shell2 struct {
 	values map[string]interface{}
 }
 
-func NewRootShell(name string, in io.Reader, out io.Writer) *Shell2 {
+func NewRootShell(name, desc string, in io.Reader, out io.Writer) *Shell2 {
 	p := ansi.NewPrinter(out)
 	sh := &Shell2{
 		name:   name,
+		desc:   desc,
 		w:      p,
 		r:      bufio.NewReader(in),
 		prompt: NewPrompt(p, name+"> "),
@@ -142,7 +144,13 @@ type RunArgs struct {
 	sh *Shell2
 }
 
-func (r *RunArgs) Get(k string) interface{}    { return r.sh.getValue(k) }
+func (r *RunArgs) Get(k string) interface{} {
+	val := r.sh.getValue(k)
+	if val == nil {
+		panic(fmt.Sprintf("%s/%s: %s: get '%s': not set in this or parent shell", r.sh.path(), r.sh.name, r.Flags2.cmd.Args[0], k))
+	}
+	return val
+}
 func (r *RunArgs) Set(k string, v interface{}) { r.sh.setValue(k, v) }
 
 func (sh *Shell2) setValue(k string, v interface{}) {
@@ -182,7 +190,7 @@ func (sh *Shell2) AddCommand(cmd Command2) {
 	sh.commands = append(sh.commands, cmd)
 }
 
-func (sh *Shell2) AddSubShell(cmd Command2) {
+func (sh *Shell2) NewSubShell(cmd Command2) *Shell2 {
 	if sh.findCommand(cmd.Name) != nil {
 		panic("Duplicate command: " + cmd.Name)
 	}
@@ -194,4 +202,5 @@ func (sh *Shell2) AddSubShell(cmd Command2) {
 	cmd.sh.env.SetParent(sh.env)
 	cmd.sh.prompt = NewPrompt(sh.w, cmd.sh.path()+"> ")
 	sh.shells = append(sh.shells, cmd)
+	return cmd.sh
 }

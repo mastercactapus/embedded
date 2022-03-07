@@ -1,7 +1,6 @@
 package bustool
 
 import (
-	"context"
 	"encoding/hex"
 	"io"
 	"math/rand"
@@ -17,17 +16,16 @@ type memDevice interface {
 	io.WriterAt
 }
 
-func AddMem(sh *term.Shell) *term.Shell {
-	memSh := sh.NewSubShell(term.Command{Name: "mem", Desc: "Interact with an AT24Cxx-compatible EEPROM device over I2C.", Init: func(ctx context.Context, exec term.CmdFunc) error {
-		f := term.Flags(ctx)
-		addr := f.Uint16(term.Flag{Name: "dev", Short: 'd', Def: "0x50", Env: "DEV", Desc: "Device addresss.", Req: true})
-		size := f.Int(term.Flag{Name: "size", Short: 'm', Def: "1", Desc: "Memory size in kbits.", Req: true})
-		if err := f.Parse(); err != nil {
+func AddMem(sh *term.Shell2) *term.Shell2 {
+	memSh := sh.NewSubShell(term.Command2{Name: "mem", Desc: "Interact with an AT24Cxx-compatible EEPROM device over I2C.", Exec: func(r term.RunArgs) error {
+		addr := r.Uint16(term.Flag{Name: "dev", Short: 'd', Def: "0x50", Env: "DEV", Desc: "Device addresss.", Req: true})
+		size := r.Int(term.Flag{Name: "size", Short: 'm', Def: "1", Desc: "Memory size in kbits.", Req: true})
+		if err := r.Parse(); err != nil {
 			return err
 		}
 
 		var dev memDevice
-		bus := ctx.Value(ctxKeyI2C).(i2c.Bus)
+		bus := r.Get("i2c").(i2c.Bus)
 
 		switch *size {
 		case 1:
@@ -45,10 +43,11 @@ func AddMem(sh *term.Shell) *term.Shell {
 		case 64:
 			dev = mem.NewAT24C64(bus, *addr)
 		default:
-			return f.UsageError("unsupported memory size %d", *size)
+			return r.UsageError("unsupported memory size %d", *size)
 		}
+		r.Set("mem", dev)
 
-		return exec(context.WithValue(ctx, ctxKeyMem, dev))
+		return nil
 	}})
 
 	for _, c := range memCommands {
@@ -63,16 +62,15 @@ func size(s io.Seeker) int {
 	return int(size)
 }
 
-var memCommands = []term.Command{
-	{Name: "r", Desc: "Read device data.", Exec: func(ctx context.Context) error {
-		f := term.Flags(ctx)
-		start := f.Int(term.Flag{Short: 's', Def: "0", Desc: "Position to start from.", Req: true})
-		count := f.Int(term.Flag{Short: 'n', Def: "0", Desc: "Number of bytes to read, if zero read to end."})
-		if err := f.Parse(); err != nil {
+var memCommands = []term.Command2{
+	{Name: "r", Desc: "Read device data.", Exec: func(r term.RunArgs) error {
+		start := r.Int(term.Flag{Short: 's', Def: "0", Desc: "Position to start from.", Req: true})
+		count := r.Int(term.Flag{Short: 'n', Def: "0", Desc: "Number of bytes to read, if zero read to end."})
+		if err := r.Parse(); err != nil {
 			return err
 		}
 
-		mem := ctx.Value(ctxKeyMem).(memDevice)
+		mem := r.Get("mem").(memDevice)
 
 		_, err := mem.Seek(int64(*start), 0)
 		if err != nil {
@@ -87,20 +85,19 @@ var memCommands = []term.Command{
 			_, err = io.ReadFull(mem, data)
 		}
 
-		term.Printer(ctx).Print(hex.Dump(data))
+		r.Print(hex.Dump(data))
 		return nil
 	}},
-	{Name: "w", Desc: "Write device data.", Exec: func(ctx context.Context) error {
-		f := term.Flags(ctx)
-		start := f.Int(term.Flag{Short: 's', Def: "0", Desc: "Position to start from.", Req: true})
-		binData := f.Bytes(term.Flag{Name: "data", Short: 'b', Desc: "Write bytes (comma separated) before arg data."})
-		if err := f.Parse(); err != nil {
+	{Name: "w", Desc: "Write device data.", Exec: func(r term.RunArgs) error {
+		start := r.Int(term.Flag{Short: 's', Def: "0", Desc: "Position to start from.", Req: true})
+		binData := r.Bytes(term.Flag{Name: "data", Short: 'b', Desc: "Write bytes (comma separated) before arg data."})
+		if err := r.Parse(); err != nil {
 			return err
 		}
 
-		mem := ctx.Value(ctxKeyMem).(memDevice)
+		mem := r.Get("mem").(memDevice)
 
-		data := append(*binData, []byte(f.Arg(0))...)
+		data := append(*binData, []byte(r.Arg(0))...)
 		_, err := mem.WriteAt(data, int64(*start))
 		if err != nil {
 			return err
@@ -108,17 +105,16 @@ var memCommands = []term.Command{
 
 		return nil
 	}},
-	{Name: "format", Desc: "Clear all data.", Exec: func(ctx context.Context) error {
-		f := term.Flags(ctx)
-		start := f.Int(term.Flag{Short: 'p', Def: "0", Desc: "Position to start from.", Req: true})
-		count := f.Int(term.Flag{Short: 'n', Def: "0", Desc: "Number of bytes to wipe, if zero clear to end."})
-		value := f.Byte(term.Flag{Short: 'v', Def: "0xff", Desc: "Value to write."})
-		rnd := f.Bool(term.Flag{Name: "random", Desc: "Fill with random data."})
-		if err := f.Parse(); err != nil {
+	{Name: "format", Desc: "Clear all data.", Exec: func(r term.RunArgs) error {
+		start := r.Int(term.Flag{Short: 'p', Def: "0", Desc: "Position to start from.", Req: true})
+		count := r.Int(term.Flag{Short: 'n', Def: "0", Desc: "Number of bytes to wipe, if zero clear to end."})
+		value := r.Byte(term.Flag{Short: 'v', Def: "0xff", Desc: "Value to write."})
+		rnd := r.Bool(term.Flag{Name: "random", Desc: "Fill with random data."})
+		if err := r.Parse(); err != nil {
 			return err
 		}
 
-		mem := ctx.Value(ctxKeyMem).(memDevice)
+		mem := r.Get("mem").(memDevice)
 
 		if *count == 0 {
 			*count = size(mem) - *start

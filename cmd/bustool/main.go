@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 	"os"
 
@@ -24,7 +23,7 @@ func main() {
 	}
 	defer terminal.Restore(0, s)
 
-	err = sh.Exec(context.Background())
+	err = sh.Run()
 	if err != nil {
 		log.Fatal(err)
 	}

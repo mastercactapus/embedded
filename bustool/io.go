@@ -1,7 +1,6 @@
 package bustool
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 
@@ -25,17 +24,16 @@ func pinMask(args []string) (ioexp.Valuer, error) {
 	return ioexp.PinMask(pins), nil
 }
 
-func AddIO(sh *term.Shell) *term.Shell {
-	ioSh := sh.NewSubShell(term.Command{Name: "io", Desc: "Interact with IO expansion chips over I2C.", Init: func(ctx context.Context, exec term.CmdFunc) error {
-		f := term.Flags(ctx)
-		addr := f.Uint16(term.Flag{Name: "addr", Short: 'd', Def: "0x20", Env: "DEV", Desc: "Device addresss.", Req: true})
-		devType := f.Enum(term.Flag{Name: "type", Short: 't', Def: "mcp", Desc: "IO device type.", Req: true}, "pcf", "mcp")
-		if err := f.Parse(); err != nil {
+func AddIO(sh *term.Shell2) *term.Shell2 {
+	ioSh := sh.NewSubShell(term.Command2{Name: "io", Desc: "Interact with IO expansion chips over I2C.", Exec: func(r term.RunArgs) error {
+		addr := r.Uint16(term.Flag{Name: "addr", Short: 'd', Def: "0x20", Env: "DEV", Desc: "Device addresss.", Req: true})
+		devType := r.Enum(term.Flag{Name: "type", Short: 't', Def: "mcp", Desc: "IO device type.", Req: true}, "pcf", "mcp")
+		if err := r.Parse(); err != nil {
 			return err
 		}
 
 		var dev ioexp.PinReadWriter
-		bus := ctx.Value(ctxKeyI2C).(i2c.Bus)
+		bus := r.Get("i2c").(i2c.Bus)
 
 		switch *devType {
 		case "mcp":
@@ -43,10 +41,11 @@ func AddIO(sh *term.Shell) *term.Shell {
 		case "pcf":
 			dev = ioexp.NewPCF8574(bus, *addr)
 		default:
-			return f.UsageError("unsupported device type '%s'", *devType)
+			return r.UsageError("unsupported device type '%s'", *devType)
 		}
+		r.Set("io", dev)
 
-		return exec(context.WithValue(ctx, ctxKeyIO, dev))
+		return nil
 	}})
 
 	for _, c := range ioCommands {
@@ -55,118 +54,112 @@ func AddIO(sh *term.Shell) *term.Shell {
 	return ioSh
 }
 
-var ioCommands = []term.Command{
-	{Name: "r", Desc: "Read pin state.", Exec: func(ctx context.Context) error {
-		if err := term.Flags(ctx).Parse(); err != nil {
+var ioCommands = []term.Command2{
+	{Name: "r", Desc: "Read pin state.", Exec: func(r term.RunArgs) error {
+		if err := r.Parse(); err != nil {
 			return err
 		}
 
-		dev := ctx.Value(ctxKeyIO).(ioexp.PinReadWriter)
+		dev := r.Get("io").(ioexp.PinReadWriter)
 		pins, err := dev.ReadPins()
 		if err != nil {
 			return err
 		}
 
-		p := term.Printer(ctx)
 		for i := 0; i < dev.PinCount(); i++ {
-			p.Printf("% 3d ", i)
+			r.Printf("% 3d ", i)
 		}
-		p.Println()
+		r.Println()
 		for i := 0; i < dev.PinCount(); i++ {
 			val := 0
 			if pins.Value(i) {
 				val = 1
 			}
-			p.Printf("% 3d ", val)
+			r.Printf("% 3d ", val)
 		}
-		p.Println()
+		r.Println()
 
 		return nil
 	}},
 
-	{Name: "input", Desc: "Set selected pins to input, rest as output.", Exec: func(ctx context.Context) error {
-		f := term.Flags(ctx)
-		if err := f.Parse(); err != nil {
+	{Name: "input", Desc: "Set selected pins to input, rest as output.", Exec: func(r term.RunArgs) error {
+		if err := r.Parse(); err != nil {
 			return err
 		}
 
-		dev := ctx.Value(ctxKeyIO).(ioexp.PinReadWriter)
+		dev := r.Get("io").(ioexp.PinReadWriter)
 		is, ok := dev.(ioexp.InputSetter)
 		if !ok {
 			return fmt.Errorf("device does not support setting input pins")
 		}
 
-		mask, err := pinMask(f.Args())
+		mask, err := pinMask(r.Args())
 		if err != nil {
-			return f.UsageError("parse args: %w", err)
+			return r.UsageError("parse args: %w", err)
 		}
 
 		return is.SetInputPinsMask(ioexp.AllPins(true), mask)
 	}},
 
-	{Name: "output", Desc: "Set selected pins to output, rest as input.", Exec: func(ctx context.Context) error {
-		f := term.Flags(ctx)
-		if err := f.Parse(); err != nil {
+	{Name: "output", Desc: "Set selected pins to output, rest as input.", Exec: func(r term.RunArgs) error {
+		if err := r.Parse(); err != nil {
 			return err
 		}
 
-		dev := ctx.Value(ctxKeyIO).(ioexp.PinReadWriter)
+		dev := r.Get("io").(ioexp.PinReadWriter)
 		is, ok := dev.(ioexp.InputSetter)
 		if !ok {
 			return fmt.Errorf("device does not support setting input pins")
 		}
 
-		mask, err := pinMask(f.Args())
+		mask, err := pinMask(r.Args())
 		if err != nil {
-			return f.UsageError("parse args: %w", err)
+			return r.UsageError("parse args: %w", err)
 		}
 
 		return is.SetInputPinsMask(ioexp.AllPins(false), mask)
 	}},
 
-	{Name: "on", Desc: "Turn on selected pin(s).", Exec: func(ctx context.Context) error {
-		f := term.Flags(ctx)
-		if err := f.Parse(); err != nil {
+	{Name: "on", Desc: "Turn on selected pin(s).", Exec: func(r term.RunArgs) error {
+		if err := r.Parse(); err != nil {
 			return err
 		}
 
-		dev := ctx.Value(ctxKeyIO).(ioexp.PinReadWriter)
+		dev := r.Get("io").(ioexp.PinReadWriter)
 
-		mask, err := pinMask(f.Args())
+		mask, err := pinMask(r.Args())
 		if err != nil {
-			return f.UsageError("parse args: %w", err)
+			return r.UsageError("parse args: %w", err)
 		}
 
 		return dev.WritePinsMask(ioexp.AllPins(true), mask)
 	}},
 
-	{Name: "off", Desc: "Turn off selected pin(s).", Exec: func(ctx context.Context) error {
-		f := term.Flags(ctx)
-		if err := f.Parse(); err != nil {
+	{Name: "off", Desc: "Turn off selected pin(s).", Exec: func(r term.RunArgs) error {
+		if err := r.Parse(); err != nil {
 			return err
 		}
 
-		dev := ctx.Value(ctxKeyIO).(ioexp.PinReadWriter)
+		dev := r.Get("io").(ioexp.PinReadWriter)
 
-		mask, err := pinMask(f.Args())
+		mask, err := pinMask(r.Args())
 		if err != nil {
-			return f.UsageError("parse args: %w", err)
+			return r.UsageError("parse args: %w", err)
 		}
 
 		return dev.WritePinsMask(ioexp.AllPins(false), mask)
 	}},
 
-	{Name: "set", Desc: "Turn on ONLY selected pin(s).", Exec: func(ctx context.Context) error {
-		f := term.Flags(ctx)
-		if err := f.Parse(); err != nil {
+	{Name: "set", Desc: "Turn on ONLY selected pin(s).", Exec: func(r term.RunArgs) error {
+		if err := r.Parse(); err != nil {
 			return err
 		}
 
-		dev := ctx.Value(ctxKeyIO).(ioexp.PinReadWriter)
+		dev := r.Get("io").(ioexp.PinReadWriter)
 
-		pins, err := pinMask(f.Args())
+		pins, err := pinMask(r.Args())
 		if err != nil {
-			return f.UsageError("parse args: %w", err)
+			return r.UsageError("parse args: %w", err)
 		}
 
 		return dev.WritePins(pins)

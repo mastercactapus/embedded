@@ -16,6 +16,12 @@ func init() {
 			if err := r.Parse(); err != nil {
 				return err
 			}
+
+			if r.sh.desc != "" {
+				r.Println(r.sh.desc)
+				r.Println()
+			}
+
 			var tb ansi.Table
 			tb.Min = 3
 
