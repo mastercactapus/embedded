@@ -31,7 +31,7 @@ func NewRootShell(name, desc string, in io.Reader, out io.Writer) *Shell {
 		name: name,
 		desc: desc,
 		w:    p,
-		r:    bufio.NewReader(in),
+		r:    bufio.NewReader(&fixReader{in}),
 		env:  NewEnv(),
 	}
 	sh.prompt = NewPrompt(p, sh.path()+"> ")

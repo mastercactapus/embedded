@@ -15,7 +15,7 @@ func main() {
 		panic(err)
 	}
 
-	sh := bustool.NewShell(&fixReader{machine.Serial}, machine.Serial)
+	sh := bustool.NewShell(machine.Serial, machine.Serial)
 	sh.SetNoExit(true)
 	bus, err := i2c.I2C0()
 	if err != nil {

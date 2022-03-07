@@ -1,10 +1,11 @@
-package main
+package term
 
 import (
 	"io"
 	"time"
 )
 
+// fixReader fixes broken reader implementations.
 type fixReader struct {
 	io.Reader
 }
