@@ -13,6 +13,15 @@ type RunArgs struct {
 	sh *Shell
 }
 
+const Interrupt rune = 0x03
+
+// Input returns a rune reader for the shell.
+//
+// Zero values should be ignored.
+func (r *RunArgs) Input() <-chan rune {
+	return r.sh.r
+}
+
 func (r *RunArgs) Get(k string) interface{} {
 	val := r.sh.Get(k)
 	if val == nil {

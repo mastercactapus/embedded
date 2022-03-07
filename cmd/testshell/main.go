@@ -4,7 +4,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"log"
+	"math/rand"
 	"os"
+	"time"
 
 	"github.com/mastercactapus/embedded/term"
 )
@@ -42,6 +44,28 @@ func main() {
 	subSh.AddCommand("panictest", "err test command", func(r term.RunArgs) error {
 		r.Get("404")
 		return nil
+	})
+
+	subSh.AddCommand("watch", "test watch functionality", func(r term.RunArgs) error {
+		t := time.NewTicker(time.Second)
+		defer t.Stop()
+		rCh := r.Input()
+		for {
+			select {
+			case <-t.C:
+			case r := <-rCh:
+				if r == term.Interrupt {
+					return nil
+				}
+				continue
+			}
+
+			data := make([]byte, 64)
+			rand.Read(data)
+			r.Esc('H')
+			r.Esc('J')
+			r.Print(hex.Dump(data))
+		}
 	})
 
 	err := sh.Run()
