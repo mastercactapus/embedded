@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"errors"
 	"log"
 	"os"
@@ -31,7 +32,8 @@ func main() {
 	}})
 
 	subSh.AddCommand(term.Command2{Name: "test", Desc: "test command", Exec: func(r term.RunArgs) error {
-		r.Println("hello world")
+		data := make([]byte, 20)
+		r.Print(hex.Dump(data))
 		return nil
 	}})
 	subSh.AddCommand(term.Command2{Name: "err", Desc: "err test command", Exec: func(r term.RunArgs) error {

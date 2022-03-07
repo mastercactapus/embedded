@@ -30,51 +30,34 @@ func (pr *Printer) Err() error {
 	return err
 }
 
+func (pr *Printer) WriteByte(b byte) (err error) {
+	if b == '\n' && pr.lastByte != '\r' {
+		err = pr.WriteByte('\r')
+		if err != nil {
+			return err
+		}
+	}
+
+	if bw, ok := pr.w.(io.ByteWriter); ok {
+		err = bw.WriteByte(b)
+	} else {
+		_, err = pr.w.Write([]byte{b})
+	}
+
+	if err == nil {
+		pr.lastByte = b
+	}
+
+	return err
+}
+
 func (pr *Printer) Write(p []byte) (n int, err error) {
-	if len(p) == 0 {
-		return 0, nil
-	}
-	if pr.err != nil {
-		return 0, pr.err
-	}
-
-	var last byte = pr.lastByte
-	buf := p
 	for i, b := range p {
-		if b != '\n' {
-			last = b
-			continue
+		if err = pr.WriteByte(b); err != nil {
+			return i, err
 		}
-		if last == '\r' {
-			last = b
-			continue
-		}
-
-		// current is newline, but missing return
-		buf = p[i:]
-		w, err := pr.w.Write(p[:i])
-		n += w
-		if n > 0 {
-			pr.lastByte = p[n-1]
-		}
-		if err != nil {
-			pr.err = err
-			return n, err
-		}
-		_, err = pr.w.Write([]byte{'\r'})
-		if err != nil {
-			pr.err = err
-			return n, err
-		}
-		pr.lastByte = '\r'
 	}
-
-	w, err := pr.w.Write(buf)
-	n += w
-	pr.lastByte = buf[w-1]
-
-	pr.err = err
-	return n, err
+	return len(p), nil
 }
 
 func (p *Printer) WriteString(s string) (int, error) { return p.Write([]byte(s)) }
