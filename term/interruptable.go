@@ -1,7 +1,5 @@
 package term
 
-import "time"
-
 type Interruptable struct {
 	fn func(abort func() bool) bool
 
@@ -45,15 +43,6 @@ func (i *Interruptable) shouldAbort() bool {
 }
 
 func (i *Interruptable) _run() {
-	t := time.NewTimer(100 * time.Millisecond)
-	defer t.Stop()
-	select {
-	case <-i.abortCh:
-		// abort during debounce
-		i.lastRun <- true
-		return
-	case <-t.C:
-	}
 	i.lastRun <- i.fn(i.shouldAbort)
 }
 
