@@ -12,7 +12,9 @@ import (
 )
 
 func main() {
-	sh := term.NewRootShell("testshell", "Testing basic shell functionality", os.Stdin, os.Stdout)
+	w := term.NewThrottleWriter(os.Stdout, 100)
+
+	sh := term.NewRootShell("testshell", "Testing basic shell functionality", os.Stdin, w)
 	sh.AddCommand("test", "test command", func(r term.RunArgs) error {
 		if err := r.Parse(); err != nil {
 			return err

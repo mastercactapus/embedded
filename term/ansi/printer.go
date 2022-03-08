@@ -66,6 +66,9 @@ func (p *Printer) Print(a ...interface{})                 { fmt.Fprint(p, a...) 
 func (p *Printer) Println(a ...interface{})               { fmt.Fprintln(p, a...) }
 func (p *Printer) Printf(format string, a ...interface{}) { fmt.Fprintf(p, format, a...) }
 
+func (p *Printer) HideCursor() { p.WriteString("\x1b[?25l") }
+func (p *Printer) ShowCursor() { p.WriteString("\x1b[?25h") }
+
 // Esc will write an escape sequence to the writer.
 func (p *Printer) Esc(code byte, args ...int) {
 	p.WriteString("\x1b[")
