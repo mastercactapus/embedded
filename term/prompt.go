@@ -89,7 +89,9 @@ func (p *Prompt) NextCommand(r rune) (*CmdLine, error) {
 		}
 		p.hist = true
 		p.input = append(p.input[:0], []rune(p.lastCommand)...)
-		p.w.CursorBack(p.pos)
+		if p.pos > 0 {
+			p.w.CursorBack(p.pos)
+		}
 		p.w.Print(string(p.input))
 		p.w.EraseLine(ansi.CurToEnd)
 		p.pos = len(p.input)
