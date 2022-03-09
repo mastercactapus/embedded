@@ -20,8 +20,6 @@ func PinUint16(v Valuer) (r uint16) {
 // Pin16 is a PinState for 16-bit expanders.
 type Pin16 uint16
 
-func (Pin16) Len() int { return 8 }
-
 func (p Pin16) Value(n int) bool {
 	if n < 0 || n >= 16 {
 		return false
@@ -29,15 +27,21 @@ func (p Pin16) Value(n int) bool {
 	return (p & (1 << n)) != 0
 }
 
-func (p *Pin16) High(n ...int) {
+func SetHigh(s PinState, n ...int) {
 	for _, i := range n {
-		p.Set(i, true)
+		s.Set(i, true)
 	}
 }
 
-func (p *Pin16) Low(n ...int) {
+func SetLow(s PinState, n ...int) {
 	for _, i := range n {
-		p.Set(i, false)
+		s.Set(i, false)
+	}
+}
+
+func Toggle(s PinState, n ...int) {
+	for _, i := range n {
+		s.Set(i, !s.Value(i))
 	}
 }
 
@@ -50,32 +54,4 @@ func (p *Pin16) Set(n int, v bool) {
 	} else {
 		*p &= ^(1 << n)
 	}
-}
-
-func (p *Pin16) Toggle(n int) {
-	*p ^= (1 << n)
-}
-
-func (p *Pin16) ToggleAll() {
-	*p = ^*p
-}
-
-func (p *Pin16) SetAll(v bool) {
-	if v {
-		*p = 0xff
-	} else {
-		*p = 0
-	}
-}
-
-func (p Pin16) Map(fn func(int) int) PinState {
-	if fn == nil {
-		return &p
-	}
-
-	var n Pin16
-	for i := 0; i < 16; i++ {
-		n.Set(fn(i), p.Value(i))
-	}
-	return &n
 }

@@ -18,6 +18,9 @@ type PinMasker struct {
 }
 
 func ClonePins(pins Valuer, n int) PinState {
+	if pins == nil {
+		pins = AllPins(false)
+	}
 	v := make(PinBool, n)
 	for i := 0; i < n; i++ {
 		v.Set(i, pins.Value(i))

@@ -20,8 +20,6 @@ func PinByte(v Valuer) (r byte) {
 // Pin8 is a PinState for 8-bit expanders.
 type Pin8 uint8
 
-func (Pin8) Len() int { return 8 }
-
 func (p Pin8) Value(n int) bool {
 	if n < 0 || n >= 8 {
 		return false
@@ -39,35 +37,4 @@ func (p *Pin8) Set(n int, v bool) {
 	} else {
 		*p &= ^(1 << n)
 	}
-}
-
-func (p *Pin8) Toggle(n int) {
-	if n < 0 || n >= 8 {
-		return
-	}
-	*p ^= (1 << n)
-}
-
-func (p *Pin8) ToggleAll() {
-	*p = ^*p
-}
-
-func (p *Pin8) SetAll(v bool) {
-	if v {
-		*p = 0xff
-	} else {
-		*p = 0
-	}
-}
-
-func (p Pin8) Map(fn func(int) int) PinState {
-	if fn == nil {
-		return &p
-	}
-
-	var n Pin8
-	for i := 0; i < 8; i++ {
-		n.Set(fn(i), p.Value(i))
-	}
-	return &n
 }

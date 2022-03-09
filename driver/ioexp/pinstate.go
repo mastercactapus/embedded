@@ -45,17 +45,6 @@ type Setter interface {
 	//
 	// Calling Set on a pin that is not available will be ignored.
 	Set(int, bool)
-
-	// Toggle swaps the value of the numbered pin.
-	//
-	// Calling Toggle on a pin that is not available will be ignored.
-	Toggle(int)
-
-	// SetAll is a convenience method that sets all pins to the provided value.
-	SetAll(bool)
-
-	// ToggleAll is a convenience method that toggles all pins.
-	ToggleAll()
 }
 
 // CopyN copies the state of one set of pins to another.

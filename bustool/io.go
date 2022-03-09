@@ -149,18 +149,22 @@ var ioCommands = []term.Command{
 	}},
 
 	{Name: "set", Desc: "Set specified pins.", Exec: func(r term.RunArgs) error {
-		low := r.Bool(term.Flag{Name: "low", Short: 'l', Desc: "Set pins ?LOW instead of HIGH."})
+		low := r.Bool(term.Flag{Name: "low", Short: 'l', Desc: "Set specified pins LOW instead of HIGH."})
 		if err := r.Parse(); err != nil {
 			return err
 		}
 
 		dev := r.Get("io").(ioexp.PinReadWriter)
 
-		mask, err := pinMask(r.Args())
+		pins, err := pinMask(r.Args())
 		if err != nil {
 			return r.UsageError("parse args: %w", err)
 		}
 
-		return dev.WritePinsMask(ioexp.AllPins(!*low), mask)
+		if *low {
+			pins = ioexp.Invert(pins)
+		}
+
+		return dev.WritePins(pins)
 	}},
 }
