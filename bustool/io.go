@@ -21,7 +21,7 @@ func pinMask(args []string) (ioexp.Valuer, error) {
 		}
 		pins = append(pins, i)
 	}
-	return ioexp.PinMask(pins), nil
+	return ioexp.PinMask(pins...), nil
 }
 
 func AddIO(sh *term.Shell) *term.Shell {

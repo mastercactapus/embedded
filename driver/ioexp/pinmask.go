@@ -1,9 +1,11 @@
 package ioexp
 
-type PinMask []int
+func PinMask(n ...int) Valuer { return pinMask(n) }
 
-func (PinMask) Len() int { return -1 }
-func (m PinMask) Value(i int) bool {
+type pinMask []int
+
+func (pinMask) Len() int { return -1 }
+func (m pinMask) Value(i int) bool {
 	for _, v := range m {
 		if v == i {
 			return true
