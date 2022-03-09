@@ -1,7 +1,5 @@
 package ioexp
 
-import "fmt"
-
 type PinMask []int
 
 func (PinMask) Len() int { return -1 }
@@ -41,10 +39,6 @@ func (p *PinMasker) Set(v Valuer) { p.v = ClonePins(v, p.n) }
 func (p *PinMasker) Apply(pins, mask Valuer) Valuer { return ApplyPinsMaskN(p.v, pins, mask, p.n) }
 
 func (p *PinMasker) ApplyFn(pins, mask Valuer, fn func(Valuer) error) error {
-	if p.v == nil {
-		return fmt.Errorf("mask: tried to apply mask before writing initial state")
-	}
-
 	val := p.Apply(pins, mask)
 	err := fn(val)
 	if err != nil {

@@ -9,6 +9,8 @@ type PinWriter interface {
 	WritePins(Valuer) error
 
 	// WritePinsMask works like WritePins but only updates the masked pins.
+	//
+	// Note: Some devices will update all pins on first WritePinsMask call.
 	WritePinsMask(pins, mask Valuer) error
 
 	// PinCount returns the number of pins available on the device.

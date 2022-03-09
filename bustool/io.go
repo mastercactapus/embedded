@@ -118,7 +118,7 @@ var ioCommands = []term.Command{
 		return is.SetInputPinsMask(ioexp.AllPins(false), mask)
 	}},
 
-	{Name: "on", Desc: "Turn on selected pin(s).", Exec: func(r term.RunArgs) error {
+	{Name: "high", Desc: "Turn HIGH selected pin(s).", Exec: func(r term.RunArgs) error {
 		if err := r.Parse(); err != nil {
 			return err
 		}
@@ -133,7 +133,7 @@ var ioCommands = []term.Command{
 		return dev.WritePinsMask(ioexp.AllPins(true), mask)
 	}},
 
-	{Name: "off", Desc: "Turn off selected pin(s).", Exec: func(r term.RunArgs) error {
+	{Name: "low", Desc: "Turn LOW selected pin(s).", Exec: func(r term.RunArgs) error {
 		if err := r.Parse(); err != nil {
 			return err
 		}
@@ -148,18 +148,19 @@ var ioCommands = []term.Command{
 		return dev.WritePinsMask(ioexp.AllPins(false), mask)
 	}},
 
-	{Name: "set", Desc: "Turn on ONLY selected pin(s).", Exec: func(r term.RunArgs) error {
+	{Name: "set", Desc: "Set specified pins.", Exec: func(r term.RunArgs) error {
+		low := r.Bool(term.Flag{Name: "low", Short: 'l', Desc: "Set pins ?LOW instead of HIGH."})
 		if err := r.Parse(); err != nil {
 			return err
 		}
 
 		dev := r.Get("io").(ioexp.PinReadWriter)
 
-		pins, err := pinMask(r.Args())
+		mask, err := pinMask(r.Args())
 		if err != nil {
 			return r.UsageError("parse args: %w", err)
 		}
 
-		return dev.WritePins(pins)
+		return dev.WritePinsMask(ioexp.AllPins(!*low), mask)
 	}},
 }

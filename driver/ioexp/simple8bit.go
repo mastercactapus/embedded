@@ -45,6 +45,7 @@ func (dev *Simple8Bit) ReadPins() (PinState, error) {
 // High values also changes the pins to input mode.
 // Low values also changes the pins to output mode.
 func (dev *Simple8Bit) WritePins(pins Valuer) error {
+	dev.m.Set(pins)
 	b := PinByte(pins)
 
 	if bw, ok := dev.rw.(io.ByteWriter); ok {
