@@ -4,7 +4,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/mastercactapus/embedded/bus/i2c"
+	"github.com/mastercactapus/embedded/serial/i2c"
 )
 
 // NewAT24C01 creates a AT24C01-compatible Pager.

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/mastercactapus/embedded/bus/i2c"
 	"github.com/mastercactapus/embedded/driver/ioexp"
+	"github.com/mastercactapus/embedded/serial/i2c"
 	"github.com/mastercactapus/embedded/term"
 )
 

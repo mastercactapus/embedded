@@ -1,11 +1,5 @@
 package ioexp
 
-// PinMap is a convenince method that returns a mapping func using the
-// provided slice to lookup target pin numbers.
-func PinMap(pins []int) func(int) int {
-	return func(in int) (out int) { return pins[in] }
-}
-
 type SN74HC595 struct {
 	w    PinWriter
 	pins PinBool

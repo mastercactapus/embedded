@@ -5,7 +5,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/mastercactapus/embedded/bus"
+	"github.com/mastercactapus/embedded/serial"
 )
 
 // Pager is a memory device that can be used to read and write to pages of memory.
@@ -74,9 +74,9 @@ func (d *Pager) Read(p []byte) (n int, err error) {
 	if d.devPos != d.pos {
 		switch d.addrSize {
 		case 1:
-			err = bus.Tx(d.rw, []byte{byte(d.pos)}, p)
+			err = serial.Tx(d.rw, []byte{byte(d.pos)}, p)
 		case 2:
-			err = bus.Tx(d.rw, []byte{byte(d.pos >> 8), byte(d.pos & 0xff)}, p)
+			err = serial.Tx(d.rw, []byte{byte(d.pos >> 8), byte(d.pos & 0xff)}, p)
 		default:
 			panic("invalid address size")
 		}

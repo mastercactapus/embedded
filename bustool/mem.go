@@ -7,8 +7,8 @@ import (
 	"io"
 	"math/rand"
 
-	"github.com/mastercactapus/embedded/bus/i2c"
 	"github.com/mastercactapus/embedded/driver/mem"
+	"github.com/mastercactapus/embedded/serial/i2c"
 	"github.com/mastercactapus/embedded/term"
 )
 

@@ -3,8 +3,8 @@ package bustool
 import (
 	"io"
 
-	"github.com/mastercactapus/embedded/bus/i2c"
 	"github.com/mastercactapus/embedded/driver/lcd"
+	"github.com/mastercactapus/embedded/serial/i2c"
 	"github.com/mastercactapus/embedded/term"
 )
 

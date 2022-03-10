@@ -3,8 +3,8 @@ package ioexp
 import (
 	"io"
 
-	"github.com/mastercactapus/embedded/bus"
-	"github.com/mastercactapus/embedded/bus/i2c"
+	"github.com/mastercactapus/embedded/serial"
+	"github.com/mastercactapus/embedded/serial/i2c"
 )
 
 type MCP23X17 struct {
@@ -85,7 +85,7 @@ func (mcp *MCP23X17) setPins(reg byte, p Valuer) error {
 
 func (mcp *MCP23X17) getPins(reg byte) (PinState, error) {
 	var buf [2]byte
-	err := bus.Tx(mcp.rw, []byte{reg}, buf[:])
+	err := serial.Tx(mcp.rw, []byte{reg}, buf[:])
 	if err != nil {
 		return nil, err
 	}

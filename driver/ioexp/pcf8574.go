@@ -1,7 +1,7 @@
 package ioexp
 
 import (
-	"github.com/mastercactapus/embedded/bus/i2c"
+	"github.com/mastercactapus/embedded/serial/i2c"
 )
 
 // NewPCF8574 is a convenience method that returns a PinReadWriter for a PCF8574-compatible I2C device.
