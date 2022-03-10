@@ -4,41 +4,109 @@
 package i2c
 
 import (
-	"device"
+	"device/arm"
+	"device/rp"
 	"machine"
 )
 
-func wait() {
-	for i := 0; i < 50; i++ {
-		device.Asm("nop")
+type ctrl struct {
+	sdaMask, sclMask uint32
+
+	half, qtr int
+}
+
+func NewController(sda, scl machine.Pin) Controller {
+	sda.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
+	sda.Low()
+	scl.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
+	scl.Low()
+
+	b := &ctrl{
+		sdaMask: 1 << uint32(sda),
+		sclMask: 1 << uint32(scl),
+	}
+	b.SetBaudRate(100e3)
+
+	return b
+}
+
+func (c *ctrl) SetBaudRate(br uint32) {
+	c.half = int(416 * 1000000 / br / 20)
+	c.qtr = int(416 * 1000000 / br / 40)
+}
+
+//go:inline
+func wait(cyc *int) {
+	arm.AsmFull(`
+	ldr {}, {cyc}
+	1:
+	subs {}, #1
+	bne 1b
+`,
+		map[string]interface{}{
+			"cyc": cyc,
+		})
+}
+
+// TODO: set timeout based on baud
+func (c *ctrl) clockUp() {
+	rp.SIO.GPIO_OE_CLR.Set(c.sclMask)
+	for !rp.SIO.GPIO_IN.HasBits(c.sclMask) {
+		// clock stretching
 	}
 }
 
-type i2cPin machine.Pin
-
-var _ Pin = i2cPin(0)
-
-func (p i2cPin) PullupHigh() {
-	machine.Pin(p).Configure(machine.PinConfig{Mode: machine.PinInputPullup})
+// Start will send a start condition on the bus.
+func (c *ctrl) Start() {
+	c.clockUp()
+	wait(&c.half)
+	rp.SIO.GPIO_OE_SET.Set(c.sdaMask)
+	wait(&c.half)
+	rp.SIO.GPIO_OE_SET.Set(c.sclMask)
+	wait(&c.half)
 }
 
-func (p i2cPin) OutputLow() {
-	machine.Pin(p).Configure(machine.PinConfig{Mode: machine.PinOutput})
-	machine.Pin(p).Low()
-}
-
-func (p i2cPin) Get() bool {
-	return machine.Pin(p).Get()
-}
-
-func I2C0() (*I2C, error) {
-	n := New()
-	err := n.Configure(Config{
-		SDA: i2cPin(machine.I2C0_SDA_PIN),
-		SCL: i2cPin(machine.I2C0_SCL_PIN),
-	})
-	if err != nil {
-		return nil, err
+func (c *ctrl) WriteBit(v bool) {
+	if v {
+		rp.SIO.GPIO_OE_CLR.Set(c.sdaMask)
+	} else {
+		rp.SIO.GPIO_OE_SET.Set(c.sdaMask)
 	}
-	return n, nil
+	wait(&c.half)
+	c.clockUp()
+	wait(&c.half)
+	rp.SIO.GPIO_OE_SET.Set(c.sclMask)
+	wait(&c.half)
 }
+
+func (c *ctrl) ReadBit() (value bool) {
+	rp.SIO.GPIO_OE_CLR.Set(c.sdaMask)
+	wait(&c.half)
+	c.clockUp()
+	wait(&c.half)
+	value = rp.SIO.GPIO_IN.HasBits(c.sdaMask)
+	if !value {
+		// keep it low
+		rp.SIO.GPIO_OE_SET.Set(c.sdaMask)
+	}
+	wait(&c.qtr)
+	rp.SIO.GPIO_OE_SET.Set(c.sclMask)
+	wait(&c.qtr)
+
+	if !value {
+		rp.SIO.GPIO_OE_CLR.Set(c.sdaMask)
+	}
+	return value
+}
+
+// Stop will send a stop condition on the bus.
+func (c *ctrl) Stop() {
+	rp.SIO.GPIO_OE_SET.Set(c.sdaMask)
+	wait(&c.half)
+	c.clockUp()
+	wait(&c.half)
+	rp.SIO.GPIO_OE_CLR.Set(c.sdaMask)
+	wait(&c.half)
+}
+
+func I2C0() *I2C { return New(NewController(machine.I2C0_SDA_PIN, machine.I2C0_SCL_PIN)) }

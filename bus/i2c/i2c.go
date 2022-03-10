@@ -4,6 +4,17 @@ import (
 	"errors"
 )
 
+type Controller interface {
+	Start()
+	Stop()
+	WriteBit(bool)
+	ReadBit() bool
+}
+
+type BaudRateController interface {
+	SetBaudRate(baudrate uint32) error
+}
+
 type Pin interface {
 	PullupHigh()
 	OutputLow()
@@ -12,53 +23,25 @@ type Pin interface {
 }
 
 type I2C struct {
-	sda, scl Pin
-
-	waitQtrN int
+	Controller
 }
 
-func New() *I2C {
-	return &I2C{}
-}
-
-type Config struct {
-	SDA, SCL Pin
-	Baudrate uint32
+func New(c Controller) *I2C {
+	return &I2C{Controller: c}
 }
 
 var (
-	ErrBadAddr = errors.New("i2c: bad address")
-	ErrNack    = errors.New("i2c: NACK")
+	ErrBadAddr     = errors.New("i2c: bad address")
+	ErrNack        = errors.New("i2c: NACK")
+	ErrUnsupported = errors.New("i2c: unsupported")
 )
 
-func (i2c *I2C) Configure(config Config) error {
-	if config.Baudrate == 0 {
-		config.Baudrate = 100e3
+func (i2c *I2C) SetBaudrate(baudrate uint32) error {
+	if bc, ok := i2c.Controller.(BaudRateController); ok {
+		return bc.SetBaudRate(baudrate)
 	}
 
-	i2c.sda = config.SDA
-	i2c.scl = config.SCL
-	if i2c.sda == nil || i2c.scl == nil {
-		return errors.New("i2c: pins not configured")
-	}
-
-	i2c.sda.PullupHigh()
-	i2c.scl.PullupHigh()
-
-	i2c.SetBaudrate(config.Baudrate)
-	return nil
-}
-
-func (i2c *I2C) SetBaudrate(baudrate uint32) {
-	// TODO
-}
-
-// TODO: set timeout based on baud
-func (i2c *I2C) clockUp() {
-	i2c.scl.PullupHigh()
-	for !i2c.scl.Get() {
-		// clock stretching
-	}
+	return ErrUnsupported
 }
 
 const (
@@ -194,14 +177,12 @@ func (i2c *I2C) ReadByte() (byte, error) {
 func (i2c *I2C) _ReadByte(nak bool) (byte, error) {
 	var b byte
 	for i := 0; i < 8; i++ {
-		if i2c.readBit() {
+		if i2c.ReadBit() {
 			b |= 1 << (7 - i)
 		}
 	}
 
-	i2c.writeBit(nak)
-
-	wait()
+	i2c.WriteBit(nak)
 
 	return b, nil
 }
@@ -209,64 +190,12 @@ func (i2c *I2C) _ReadByte(nak bool) (byte, error) {
 // WriteByte writes a single byte to the bus, without any address or start/stop condition.
 func (i2c *I2C) WriteByte(b byte) error {
 	for i := 0; i < 8; i++ {
-		i2c.writeBit(((b >> (7 - i)) & 1) == 1)
+		i2c.WriteBit(((b >> (7 - i)) & 1) == 1)
 	}
 
-	if i2c.readBit() {
+	if i2c.ReadBit() {
 		return ErrNack
 	}
 
-	i2c.sda.PullupHigh()
-	wait()
-
 	return nil
-}
-
-// Start will send a start condition on the bus.
-func (i2c *I2C) Start() {
-	i2c.clockUp()
-	wait()
-	i2c.sda.OutputLow()
-	wait()
-	i2c.scl.OutputLow()
-	wait()
-}
-
-func (i2c *I2C) writeBit(v bool) {
-	if v {
-		i2c.sda.PullupHigh()
-	} else {
-		i2c.sda.OutputLow()
-	}
-	wait()
-	i2c.clockUp()
-	wait()
-	i2c.scl.OutputLow()
-	wait()
-}
-
-func (i2c *I2C) readBit() (value bool) {
-	i2c.sda.PullupHigh()
-	wait()
-	i2c.clockUp()
-	wait()
-	value = i2c.sda.Get()
-	if !value {
-		// keep it low
-		i2c.sda.OutputLow()
-	}
-	wait()
-	i2c.scl.OutputLow()
-	wait()
-	return value
-}
-
-// Stop will send a stop condition on the bus.
-func (i2c *I2C) Stop() {
-	i2c.sda.OutputLow()
-	wait()
-	i2c.clockUp()
-	wait()
-	i2c.sda.PullupHigh()
-	wait()
 }
