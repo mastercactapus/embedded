@@ -9,6 +9,7 @@ import (
 	"machine"
 )
 
+// TODO: revisit clock timing vs. baud
 type ctrl struct {
 	sdaMask, sclMask uint32
 
