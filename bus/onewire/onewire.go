@@ -6,24 +6,37 @@ import (
 	"io"
 )
 
-type Bus interface {
+type Controller interface {
 	Reset() bool
 	WriteBit(bool)
 	ReadBit() bool
 }
 
-type OneWire struct {
-	Bus
+type OverdriveController interface {
+	SetOverdriveSpeed(bool) error
 }
 
-func NewOneWire(b Bus) *OneWire {
-	return &OneWire{Bus: b}
+type OneWire struct {
+	Controller
+}
+
+func New(b Controller) *OneWire {
+	return &OneWire{Controller: b}
 }
 
 var (
 	ErrNoDevice    = errors.New("onewire: no device found")
 	ErrBadChecksum = errors.New("onewire: bad checksum")
+	ErrUnsupported = errors.New("onewire: controller does not support this operation")
 )
+
+func (ow *OneWire) SetOverdriveSpeed(enabled bool) error {
+	if sc, ok := ow.Controller.(OverdriveController); ok {
+		return sc.SetOverdriveSpeed(enabled)
+	}
+
+	return ErrUnsupported
+}
 
 func (ow *OneWire) SearchROM(alarm bool) ([]Address, error) {
 	s := &searchState{alarm: alarm}
@@ -56,8 +69,35 @@ func (ow *OneWire) ReadROM() (Address, error) {
 	return a, nil
 }
 
+func (ow *OneWire) Tx(addr uint64, w []byte, r []byte) error {
+	if !ow.Reset() {
+		return ErrNoDevice
+	}
+
+	err := ow.WriteByte(0x55) // MatchROM
+	if err != nil {
+		return err
+	}
+
+	err = ow.WriteByte(byte(addr >> 56))
+
+	if len(w) > 0 {
+		if _, err := ow.Write(w); err != nil {
+			return err
+		}
+	}
+
+	if len(r) > 0 {
+		if _, err := ow.Read(r); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (ow *OneWire) Write(p []byte) (int, error) {
-	if w, ok := ow.Bus.(io.Writer); ok {
+	if w, ok := ow.Controller.(io.Writer); ok {
 		return w.Write(p)
 	}
 
@@ -71,7 +111,7 @@ func (ow *OneWire) Write(p []byte) (int, error) {
 }
 
 func (ow *OneWire) WriteByte(b byte) error {
-	if bw, ok := ow.Bus.(io.ByteWriter); ok {
+	if bw, ok := ow.Controller.(io.ByteWriter); ok {
 		return bw.WriteByte(b)
 	}
 
@@ -84,7 +124,7 @@ func (ow *OneWire) WriteByte(b byte) error {
 }
 
 func (ow *OneWire) Read(p []byte) (int, error) {
-	if r, ok := ow.Bus.(io.Reader); ok {
+	if r, ok := ow.Controller.(io.Reader); ok {
 		return r.Read(p)
 	}
 
@@ -99,7 +139,7 @@ func (ow *OneWire) Read(p []byte) (int, error) {
 }
 
 func (ow *OneWire) ReadByte() (byte, error) {
-	if br, ok := ow.Bus.(io.ByteReader); ok {
+	if br, ok := ow.Controller.(io.ByteReader); ok {
 		return br.ReadByte()
 	}
 

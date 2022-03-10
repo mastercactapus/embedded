@@ -11,49 +11,49 @@ import (
 
 const picoMul = 416
 
-type bus struct {
+type ctrl struct {
 	mask uint32
 
 	a, b, c, d, e, f, g, h, i, j int
 }
 
-func NewBus(p machine.Pin) Bus {
+func NewController(p machine.Pin) Controller {
 	p.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
 	p.Low()
-	b := &bus{mask: 1 << uint32(p)}
+	b := &ctrl{mask: 1 << uint32(p)}
 	b.standard()
 	return b
 }
 
-func (b *bus) standard() {
-	b.a = 6 * picoMul / 10
-	b.b = 64 * picoMul / 10
-	b.c = 60 * picoMul / 10
-	b.d = 10 * picoMul / 10
-	b.e = 9 * picoMul / 10
-	b.f = 55 * picoMul / 10
-	b.g = 1
-	b.h = 480 * picoMul / 10
-	b.i = 70 * picoMul / 10
-	b.j = 410 * picoMul / 10
+func (c *ctrl) standard() {
+	c.a = 6 * picoMul / 10
+	c.b = 64 * picoMul / 10
+	c.c = 60 * picoMul / 10
+	c.d = 10 * picoMul / 10
+	c.e = 9 * picoMul / 10
+	c.f = 55 * picoMul / 10
+	c.g = 1
+	c.h = 480 * picoMul / 10
+	c.i = 70 * picoMul / 10
+	c.j = 410 * picoMul / 10
 }
 
-func (b *bus) overdrive() {
-	b.a = 10 * picoMul / 100
-	b.b = 75 * picoMul / 100
-	b.c = 75 * picoMul / 100
-	b.d = 25 * picoMul / 100
-	b.e = 10 * picoMul / 100
-	b.f = 70 * picoMul / 100
-	b.g = 25 * picoMul / 100
-	b.h = 70 * picoMul / 100
-	b.i = 85 * picoMul / 100
-	b.j = 40 * picoMul / 100
+func (c *ctrl) overdrive() {
+	c.a = 10 * picoMul / 100
+	c.b = 75 * picoMul / 100
+	c.c = 75 * picoMul / 100
+	c.d = 25 * picoMul / 100
+	c.e = 10 * picoMul / 100
+	c.f = 70 * picoMul / 100
+	c.g = 25 * picoMul / 100
+	c.h = 70 * picoMul / 100
+	c.i = 85 * picoMul / 100
+	c.j = 40 * picoMul / 100
 }
 
-func (b *bus) WriteBit(v bool) {
+func (c *ctrl) WriteBit(v bool) {
 	if v {
-		rp.SIO.GPIO_OE_SET.Set(b.mask)
+		rp.SIO.GPIO_OE_SET.Set(c.mask)
 		arm.AsmFull(`
 			ldr {}, {cyc}
 			1:
@@ -61,9 +61,9 @@ func (b *bus) WriteBit(v bool) {
 			bne 1b
 		`,
 			map[string]interface{}{
-				"cyc": &b.a,
+				"cyc": &c.a,
 			})
-		rp.SIO.GPIO_OE_CLR.Set(b.mask)
+		rp.SIO.GPIO_OE_CLR.Set(c.mask)
 		arm.AsmFull(`
 			ldr {}, {cyc}
 			1:
@@ -71,10 +71,10 @@ func (b *bus) WriteBit(v bool) {
 			bne 1b
 		`,
 			map[string]interface{}{
-				"cyc": &b.b,
+				"cyc": &c.b,
 			})
 	} else {
-		rp.SIO.GPIO_OE_SET.Set(b.mask)
+		rp.SIO.GPIO_OE_SET.Set(c.mask)
 		arm.AsmFull(`
 			ldr {}, {cyc}
 			1:
@@ -82,9 +82,9 @@ func (b *bus) WriteBit(v bool) {
 			bne 1b
 		`,
 			map[string]interface{}{
-				"cyc": &b.c,
+				"cyc": &c.c,
 			})
-		rp.SIO.GPIO_OE_CLR.Set(b.mask)
+		rp.SIO.GPIO_OE_CLR.Set(c.mask)
 		arm.AsmFull(`
 			ldr {}, {cyc}
 			1:
@@ -92,13 +92,13 @@ func (b *bus) WriteBit(v bool) {
 			bne 1b
 		`,
 			map[string]interface{}{
-				"cyc": &b.d,
+				"cyc": &c.d,
 			})
 	}
 }
 
-func (b *bus) ReadBit() (value bool) {
-	rp.SIO.GPIO_OE_SET.Set(b.mask)
+func (c *ctrl) ReadBit() (value bool) {
+	rp.SIO.GPIO_OE_SET.Set(c.mask)
 	arm.AsmFull(`
 		ldr {}, {cyc}
 		1:
@@ -106,9 +106,9 @@ func (b *bus) ReadBit() (value bool) {
 		bne 1b
 	`,
 		map[string]interface{}{
-			"cyc": &b.a,
+			"cyc": &c.a,
 		})
-	rp.SIO.GPIO_OE_CLR.Set(b.mask)
+	rp.SIO.GPIO_OE_CLR.Set(c.mask)
 	arm.AsmFull(`
 		ldr {}, {cyc}
 		1:
@@ -116,9 +116,9 @@ func (b *bus) ReadBit() (value bool) {
 		bne 1b
 	`,
 		map[string]interface{}{
-			"cyc": &b.e,
+			"cyc": &c.e,
 		})
-	value = rp.SIO.GPIO_IN.HasBits(b.mask)
+	value = rp.SIO.GPIO_IN.HasBits(c.mask)
 	arm.AsmFull(`
 		ldr {}, {cyc}
 		1:
@@ -126,13 +126,13 @@ func (b *bus) ReadBit() (value bool) {
 		bne 1b
 	`,
 		map[string]interface{}{
-			"cyc": &b.f,
+			"cyc": &c.f,
 		})
 	return value
 }
 
 //go:inline
-func (b *bus) Reset() (hasDevices bool) {
+func (c *ctrl) Reset() (hasDevices bool) {
 	arm.AsmFull(`
 		ldr {}, {cyc}
 		1:
@@ -140,9 +140,9 @@ func (b *bus) Reset() (hasDevices bool) {
 		bne 1b
 	`,
 		map[string]interface{}{
-			"cyc": &b.g,
+			"cyc": &c.g,
 		})
-	rp.SIO.GPIO_OE_SET.Set(b.mask)
+	rp.SIO.GPIO_OE_SET.Set(c.mask)
 	arm.AsmFull(`
 		ldr {}, {cyc}
 		1:
@@ -150,9 +150,9 @@ func (b *bus) Reset() (hasDevices bool) {
 		bne 1b
 	`,
 		map[string]interface{}{
-			"cyc": &b.h,
+			"cyc": &c.h,
 		})
-	rp.SIO.GPIO_OE_CLR.Set(b.mask)
+	rp.SIO.GPIO_OE_CLR.Set(c.mask)
 	arm.AsmFull(`
 		ldr {}, {cyc}
 		1:
@@ -160,9 +160,9 @@ func (b *bus) Reset() (hasDevices bool) {
 		bne 1b
 	`,
 		map[string]interface{}{
-			"cyc": &b.i,
+			"cyc": &c.i,
 		})
-	hasDevices = !rp.SIO.GPIO_IN.HasBits(b.mask)
+	hasDevices = !rp.SIO.GPIO_IN.HasBits(c.mask)
 	arm.AsmFull(`
 		ldr {}, {cyc}
 		1:
@@ -170,7 +170,7 @@ func (b *bus) Reset() (hasDevices bool) {
 		bne 1b
 	`,
 		map[string]interface{}{
-			"cyc": &b.j,
+			"cyc": &c.j,
 		})
 	return hasDevices
 }
