@@ -12,10 +12,6 @@ type Controller interface {
 	ReadBit() bool
 }
 
-type OverdriveController interface {
-	SetOverdriveSpeed(bool) error
-}
-
 type OneWire struct {
 	Controller
 }
@@ -29,14 +25,6 @@ var (
 	ErrBadChecksum = errors.New("onewire: bad checksum")
 	ErrUnsupported = errors.New("onewire: controller does not support this operation")
 )
-
-func (ow *OneWire) SetOverdriveSpeed(enabled bool) error {
-	if sc, ok := ow.Controller.(OverdriveController); ok {
-		return sc.SetOverdriveSpeed(enabled)
-	}
-
-	return ErrUnsupported
-}
 
 func (ow *OneWire) SearchROM(alarm bool) ([]Address, error) {
 	s := &searchState{alarm: alarm}
