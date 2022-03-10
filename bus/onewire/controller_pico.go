@@ -54,123 +54,47 @@ func (c *ctrl) overdrive() {
 func (c *ctrl) WriteBit(v bool) {
 	if v {
 		rp.SIO.GPIO_OE_SET.Set(c.mask)
-		arm.AsmFull(`
-			ldr {}, {cyc}
-			1:
-			subs {}, #1
-			bne 1b
-		`,
-			map[string]interface{}{
-				"cyc": &c.a,
-			})
+		wait(&c.a)
 		rp.SIO.GPIO_OE_CLR.Set(c.mask)
-		arm.AsmFull(`
-			ldr {}, {cyc}
-			1:
-			subs {}, #1
-			bne 1b
-		`,
-			map[string]interface{}{
-				"cyc": &c.b,
-			})
+		wait(&c.b)
 	} else {
 		rp.SIO.GPIO_OE_SET.Set(c.mask)
-		arm.AsmFull(`
-			ldr {}, {cyc}
-			1:
-			subs {}, #1
-			bne 1b
-		`,
-			map[string]interface{}{
-				"cyc": &c.c,
-			})
+		wait(&c.c)
 		rp.SIO.GPIO_OE_CLR.Set(c.mask)
-		arm.AsmFull(`
-			ldr {}, {cyc}
-			1:
-			subs {}, #1
-			bne 1b
-		`,
-			map[string]interface{}{
-				"cyc": &c.d,
-			})
+		wait(&c.d)
 	}
+}
+
+//go:inline
+func wait(cyc *int) {
+	arm.AsmFull(`
+	ldr {}, {cyc}
+	1:
+	subs {}, #1
+	bne 1b
+`,
+		map[string]interface{}{
+			"cyc": cyc,
+		})
 }
 
 func (c *ctrl) ReadBit() (value bool) {
 	rp.SIO.GPIO_OE_SET.Set(c.mask)
-	arm.AsmFull(`
-		ldr {}, {cyc}
-		1:
-		subs {}, #1
-		bne 1b
-	`,
-		map[string]interface{}{
-			"cyc": &c.a,
-		})
+	wait(&c.a)
 	rp.SIO.GPIO_OE_CLR.Set(c.mask)
-	arm.AsmFull(`
-		ldr {}, {cyc}
-		1:
-		subs {}, #1
-		bne 1b
-	`,
-		map[string]interface{}{
-			"cyc": &c.e,
-		})
+	wait(&c.e)
 	value = rp.SIO.GPIO_IN.HasBits(c.mask)
-	arm.AsmFull(`
-		ldr {}, {cyc}
-		1:
-		subs {}, #1
-		bne 1b
-	`,
-		map[string]interface{}{
-			"cyc": &c.f,
-		})
+	wait(&c.f)
 	return value
 }
 
-//go:inline
 func (c *ctrl) Reset() (hasDevices bool) {
-	arm.AsmFull(`
-		ldr {}, {cyc}
-		1:
-		subs {}, #1
-		bne 1b
-	`,
-		map[string]interface{}{
-			"cyc": &c.g,
-		})
+	wait(&c.g)
 	rp.SIO.GPIO_OE_SET.Set(c.mask)
-	arm.AsmFull(`
-		ldr {}, {cyc}
-		1:
-		subs {}, #1
-		bne 1b
-	`,
-		map[string]interface{}{
-			"cyc": &c.h,
-		})
+	wait(&c.h)
 	rp.SIO.GPIO_OE_CLR.Set(c.mask)
-	arm.AsmFull(`
-		ldr {}, {cyc}
-		1:
-		subs {}, #1
-		bne 1b
-	`,
-		map[string]interface{}{
-			"cyc": &c.i,
-		})
+	wait(&c.i)
 	hasDevices = !rp.SIO.GPIO_IN.HasBits(c.mask)
-	arm.AsmFull(`
-		ldr {}, {cyc}
-		1:
-		subs {}, #1
-		bne 1b
-	`,
-		map[string]interface{}{
-			"cyc": &c.j,
-		})
+	wait(&c.j)
 	return hasDevices
 }
