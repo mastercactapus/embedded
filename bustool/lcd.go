@@ -11,14 +11,17 @@ import (
 func AddLCD(sh *term.Shell) *term.Shell {
 	lcdSh := sh.NewSubShell("lcd", "Interact with an LCD display over I2C.", func(r term.RunArgs) error {
 		addr := r.Uint16(term.Flag{Name: "addr", Short: 'd', Def: "0x27", Env: "DEV", Desc: "Device addresss.", Req: true})
+		lines := r.Int(term.Flag{Name: "lines", Short: 'l', Def: "2", Env: "LINES", Desc: "Number of lines.", Req: true})
+		cols := r.Int(term.Flag{Name: "cols", Short: 'c', Def: "16", Env: "COLS", Desc: "Number of columns.", Req: true})
 		if err := r.Parse(); err != nil {
 			return err
 		}
 
 		bus := r.Get("i2c").(i2c.Bus)
-		dev := lcd.NewHD44780I2C(bus, *addr)
-
-		err := dev.Init()
+		dev, err := lcd.NewHD44780I2C(bus, *addr, lcd.Config{
+			Lines: *lines,
+			Cols:  *cols,
+		})
 		if err != nil {
 			return err
 		}
@@ -59,16 +62,38 @@ var LCDCommands = []term.Command{
 		dev := r.Get("lcd").(*lcd.HD44780)
 		return dev.Clear()
 	}},
+	{Name: "stress", Desc: "woot.", Exec: func(r term.RunArgs) error {
+		if err := r.Parse(); err != nil {
+			return err
+		}
+
+		dev := r.Get("lcd").(*lcd.HD44780)
+		for {
+			select {
+			case c := <-r.Input():
+				if c == term.Interrupt {
+					return nil
+				}
+				continue
+			default:
+			}
+			dev.SetCursorXY(0, 0)
+			io.WriteString(dev, "Hello, world!!!!")
+
+			dev.SetCursorXY(0, 1)
+			io.WriteString(dev, "0123456789abcdef")
+		}
+	}},
 	{Name: "w", Desc: "Write to the screen.", Exec: func(r term.RunArgs) error {
-		x := r.Byte(term.Flag{Short: 'x', Def: "0", Desc: "Cursor start X.", Req: true})
-		y := r.Byte(term.Flag{Short: 'y', Def: "0", Desc: "Cursor start Y.", Req: true})
+		x := r.Int(term.Flag{Short: 'x', Def: "0", Desc: "Cursor start X.", Req: true})
+		y := r.Int(term.Flag{Short: 'y', Def: "0", Desc: "Cursor start Y.", Req: true})
 		if err := r.Parse(); err != nil {
 			return err
 		}
 
 		dev := r.Get("lcd").(*lcd.HD44780)
 
-		err := dev.SetCursor(*x, *y)
+		err := dev.SetCursorXY(*x, *y)
 		if err != nil {
 			return err
 		}

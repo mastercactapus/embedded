@@ -2,6 +2,7 @@ package lcd
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/mastercactapus/embedded/driver/ioexp"
@@ -12,19 +13,52 @@ type HD44780 struct {
 	c         Controller
 	writeOnly bool
 	err       error
+	cfg       Config
+
+	posX, posY int
 }
 
-func NewHD44780I2C(bus i2c.Bus, addr uint16) *HD44780 {
-	return NewHD44780(NewExpander(ioexp.NewPCF8574(bus, addr)))
+type Config struct {
+	Lines int
+	Cols  int
+	Font  Font
 }
 
-func NewHD44780(c Controller) *HD44780 {
-	return &HD44780{
-		c: c,
+type Font int
+
+const (
+	Font5x8 Font = iota
+	Font5x10
+)
+
+func NewHD44780I2C(bus i2c.Bus, addr uint16, cfg Config) (*HD44780, error) {
+	return NewHD44780(NewExpander(ioexp.NewPCF8574(bus, addr)), cfg)
+}
+
+func NewHD44780(c Controller, cfg Config) (*HD44780, error) {
+	lcd := &HD44780{
+		c:   c,
+		cfg: cfg,
 	}
+
+	if cfg.Lines > 4 {
+		return nil, errors.New("lcd: only up t0 4 lines supported")
+	}
+	if cfg.Cols > 64 {
+		return nil, errors.New("lcd: only up to 64 columns supported")
+	}
+	if cfg.Font != Font5x8 && cfg.Font != Font5x10 {
+		return nil, errors.New("lcd: only 5x8 and 5x10 fonts supported")
+	}
+
+	if err := lcd.init(); err != nil {
+		return nil, err
+	}
+
+	return lcd, nil
 }
 
-func (lcd *HD44780) Init() error {
+func (lcd *HD44780) init() error {
 	lcd.c.SetBacklight(true)
 	time.Sleep(50 * time.Millisecond)
 	if !lcd.c.IsEightBitMode() {
@@ -34,7 +68,7 @@ func (lcd *HD44780) Init() error {
 		b = 0x03<<4 | 0x02
 		lcd.writeIR(b, 5*time.Millisecond)
 	}
-	lcd.SetFunction(lcd.c.IsEightBitMode(), true, false)
+	lcd.SetFunction(lcd.c.IsEightBitMode(), lcd.cfg.Lines > 1, lcd.cfg.Font == Font5x10)
 	lcd.SetDisplay(true, false, false)
 	lcd.Clear()
 	lcd.SetEntryMode(true, false)
@@ -87,7 +121,10 @@ func (lcd *HD44780) waitFor(dur time.Duration) error {
 func (lcd *HD44780) Clear() error { return lcd.writeIR(0b_0000_0001, 2*time.Millisecond) }
 
 // Home sets DDRAM address 0 in the address counter and returns the cursor to the home position.
-func (lcd *HD44780) Home() error { return lcd.writeIR(0b_0000_0010, 1520*time.Microsecond) }
+func (lcd *HD44780) Home() error {
+	lcd.posX, lcd.posY = 0, 0
+	return lcd.writeIR(0b_0000_0010, 1520*time.Microsecond)
+}
 
 func (lcd *HD44780) SetEntryMode(increment, shiftDisplay bool) error {
 	ins := byte(0b_0000_0100)
@@ -133,33 +170,84 @@ func (lcd *HD44780) SetFunction(eightBitMode, twoLines, fiveByTen bool) error {
 	return lcd.writeIR(ins, 37*time.Microsecond)
 }
 
-func (lcd *HD44780) SetCGRAMAddr(addr byte) error {
+func (lcd *HD44780) _SetCGRAMAddr(addr byte) error {
 	if addr > 0x3F {
 		return errors.New("addr must be 0 to 0x3F")
 	}
 	return lcd.writeIR(0b_0100_0000|addr, 37*time.Microsecond)
 }
 
-func (lcd *HD44780) SetDDRAMAddr(addr byte) error {
-	if addr > 0x7F {
-		return errors.New("invalid DDRAM address")
+func (lcd *HD44780) _SetDDRAMAddr(addr int) error {
+	if addr >= 0x40+lcd.cfg.Cols*2 {
+		return fmt.Errorf("invalid DDRAM address: %x", addr)
 	}
-	return lcd.writeIR(0b_1000_0000|addr, 37*time.Microsecond)
+
+	return lcd.writeIR(0b_1000_0000|byte(addr), 37*time.Microsecond)
 }
 
-func (lcd *HD44780) SetCursor(col, line byte) error {
-	if line > 1 {
-		return errors.New("line must be 0 or 1")
+// SetCursorXY sets the cursor position to the specified coordinates starting from top-left.
+func (lcd *HD44780) SetCursorXY(x, y int) error {
+	if y >= lcd.cfg.Lines {
+		return errors.New("invalid line")
 	}
-	if col > 15 {
-		return errors.New("col must be 0 to 15")
+	if x >= lcd.cfg.Cols {
+		return errors.New("invalid column")
 	}
-	return lcd.SetDDRAMAddr(col + (line * 0x40))
+
+	lcd.posX = x
+	lcd.posY = y
+
+	switch y {
+	case 0:
+		return lcd._SetDDRAMAddr(x)
+	case 1:
+		return lcd._SetDDRAMAddr(0x40 + x)
+	case 2:
+		return lcd._SetDDRAMAddr(x + lcd.cfg.Cols)
+	case 3:
+		return lcd._SetDDRAMAddr(0x40 + x + lcd.cfg.Cols)
+	}
+	panic("unreachable")
+}
+
+func (lcd *HD44780) incrX() error {
+	lcd.posX++
+	if lcd.posX < lcd.cfg.Cols {
+		return nil
+	}
+	return lcd.incrY()
+}
+
+func (lcd *HD44780) incrY() error {
+	lcd.posY++
+	lcd.posX = 0
+	if lcd.posY == lcd.cfg.Lines {
+		lcd.posY = 0
+		lcd.posX = 0
+	}
+	return lcd.SetCursorXY(lcd.posX, lcd.posY)
 }
 
 func (lcd *HD44780) WriteByte(b byte) error {
 	defer lcd.waitFor(37 * time.Microsecond)
-	return lcd.c.WriteByte(b)
+	if b == '\r' {
+		lcd.posX = 0
+		if err := lcd.SetCursorXY(0, lcd.posY); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if b == '\n' {
+		return lcd.incrY()
+	}
+
+	err := lcd.c.WriteByte(b)
+	if err != nil {
+		return err
+	}
+
+	return lcd.incrX()
 }
 
 func (lcd *HD44780) Write(p []byte) (int, error) {
