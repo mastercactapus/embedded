@@ -2,6 +2,7 @@ package bustool
 
 import (
 	"io"
+	"math/rand"
 
 	"github.com/mastercactapus/embedded/driver/lcd"
 	"github.com/mastercactapus/embedded/serial/i2c"
@@ -62,27 +63,45 @@ var LCDCommands = []term.Command{
 		dev := r.Get("lcd").(*lcd.HD44780)
 		return dev.Clear()
 	}},
-	{Name: "stress", Desc: "woot.", Exec: func(r term.RunArgs) error {
+	{Name: "type", Desc: "Type a string on the screen.", Exec: func(r term.RunArgs) error {
 		if err := r.Parse(); err != nil {
 			return err
 		}
 
 		dev := r.Get("lcd").(*lcd.HD44780)
 		for {
-			select {
-			case c := <-r.Input():
-				if c == term.Interrupt {
-					return nil
-				}
+			c := <-r.Input()
+			if c == 0 {
 				continue
-			default:
 			}
-			dev.SetCursorXY(0, 0)
-			io.WriteString(dev, "Hello, world!!!!")
-
-			dev.SetCursorXY(0, 1)
-			io.WriteString(dev, "0123456789abcdef")
+			if c == term.Interrupt {
+				return nil
+			}
+			dev.WriteByte(byte(c))
 		}
+	}},
+	{Name: "stress", Desc: "Stream data to the display.", Exec: func(r term.RunArgs) error {
+		randData := r.Bool(term.Flag{Name: "rand", Short: 'r', Desc: "Randomize the data."})
+		if err := r.Parse(); err != nil {
+			return err
+		}
+
+		dev := r.Get("lcd").(*lcd.HD44780)
+
+		d := byte('a')
+
+		for r.WaitForInterrupt() {
+			if *randData {
+				dev.WriteByte(byte(rand.Intn('~'-' ')) + ' ')
+			} else {
+				dev.WriteByte(d)
+				d++
+				if d > 'z' {
+					d = 'a'
+				}
+			}
+		}
+		return nil
 	}},
 	{Name: "w", Desc: "Write to the screen.", Exec: func(r term.RunArgs) error {
 		x := r.Int(term.Flag{Short: 'x', Def: "0", Desc: "Cursor start X.", Req: true})

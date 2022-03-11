@@ -2,6 +2,7 @@ package term
 
 import (
 	"fmt"
+	"runtime"
 
 	"github.com/mastercactapus/embedded/term/ansi"
 )
@@ -20,6 +21,20 @@ const Interrupt rune = 0x03
 // Zero values should be ignored.
 func (r *RunArgs) Input() <-chan rune {
 	return r.sh.r
+}
+
+// WaitForInterrupt will return true until CTRL+C is pressed.
+func (r *RunArgs) WaitForInterrupt() bool {
+	select {
+	case c := <-r.Input():
+		if c == Interrupt {
+			return false
+		}
+	default:
+	}
+
+	runtime.Gosched()
+	return true
 }
 
 func (r *RunArgs) Get(k string) interface{} {
