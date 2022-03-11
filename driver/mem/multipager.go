@@ -32,6 +32,7 @@ func Join(rws ...io.ReadWriteSeeker) io.ReadWriteSeeker {
 		}
 		m.maxLen += int(l)
 		m.devMax = append(m.devMax, int(l))
+		m.devLastPos = append(m.devLastPos, -1)
 		_, err = rw.Seek(0, 0)
 		if err != nil {
 			panic(err)
@@ -66,7 +67,7 @@ func (m *MultiPager) incrPos(n int) {
 		return
 	}
 
-	if n != m.remDevBytes() {
+	if m.remDevBytes() != 0 {
 		panic("unaligned position")
 	}
 
