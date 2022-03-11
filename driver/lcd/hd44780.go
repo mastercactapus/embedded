@@ -61,6 +61,7 @@ func (lcd *HD44780) writeIR(b byte, dur time.Duration) error {
 func (lcd *HD44780) waitFor(dur time.Duration) error {
 	if lcd.writeOnly {
 		time.Sleep(dur)
+		return nil
 	}
 
 	for {
@@ -119,7 +120,7 @@ func (lcd *HD44780) SetDisplay(displayOn, cursorOn, cursorBlink bool) error {
 // If twoLines is false, only one line will be displayed.
 // If fiveByTen is false, the character font will be 5x8.
 func (lcd *HD44780) SetFunction(eightBitMode, twoLines, fiveByTen bool) error {
-	ins := byte(0b_0001_0000)
+	ins := byte(0b_0010_0000)
 	if eightBitMode {
 		ins |= 0b_0001_0000
 	}
@@ -132,17 +133,20 @@ func (lcd *HD44780) SetFunction(eightBitMode, twoLines, fiveByTen bool) error {
 	return lcd.writeIR(ins, 37*time.Microsecond)
 }
 
-// TODO: validate copilot code
 func (lcd *HD44780) SetCGRAMAddr(addr byte) error {
-	return lcd.writeIR(0b_0010_0000|addr, 37*time.Microsecond)
+	if addr > 0x3F {
+		return errors.New("addr must be 0 to 0x3F")
+	}
+	return lcd.writeIR(0b_0100_0000|addr, 37*time.Microsecond)
 }
 
-// TODO: validate copilot code
 func (lcd *HD44780) SetDDRAMAddr(addr byte) error {
+	if addr > 0x7F {
+		return errors.New("invalid DDRAM address")
+	}
 	return lcd.writeIR(0b_1000_0000|addr, 37*time.Microsecond)
 }
 
-// TODO: validate copilot code
 func (lcd *HD44780) SetCursor(col, line byte) error {
 	if line > 1 {
 		return errors.New("line must be 0 or 1")

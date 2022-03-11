@@ -3,9 +3,9 @@ package main
 import (
 	"machine"
 
-	"github.com/mastercactapus/embedded/bus/i2c"
-	"github.com/mastercactapus/embedded/bus/onewire"
 	"github.com/mastercactapus/embedded/bustool"
+	"github.com/mastercactapus/embedded/serial/i2c"
+	"github.com/mastercactapus/embedded/serial/onewire"
 	"github.com/mastercactapus/embedded/term"
 )
 
