@@ -1,6 +1,6 @@
 package i2c
 
-import "github.com/mastercactapus/embedded/bus"
+import "github.com/mastercactapus/embedded/serial"
 
 type Bus interface {
 	Tx(addr uint16, w, r []byte) error
@@ -11,7 +11,7 @@ type Device struct {
 	addr uint16
 }
 
-var _ bus.Transmitter = (*Device)(nil)
+var _ serial.Transmitter = (*Device)(nil)
 
 type WriterTo interface {
 	WriteTo([]byte, uint16) (int, error)

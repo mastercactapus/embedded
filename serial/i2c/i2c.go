@@ -15,13 +15,6 @@ type BaudRateController interface {
 	SetBaudRate(baudrate uint32) error
 }
 
-type Pin interface {
-	PullupHigh()
-	OutputLow()
-
-	Get() bool
-}
-
 type I2C struct {
 	Controller
 }
