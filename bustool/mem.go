@@ -120,7 +120,9 @@ var MemCommands = []term.Command{
 		start := r.Int(term.Flag{Short: 'p', Def: "0", Desc: "Position to start from.", Req: true})
 		count := r.Int(term.Flag{Short: 'n', Def: "0", Desc: "Number of bytes to wipe, if zero clear to end."})
 		value := r.Byte(term.Flag{Short: 'v', Def: "0xff", Desc: "Value to write."})
+		// TODO: group
 		rnd := r.Bool(term.Flag{Name: "random", Desc: "Fill with random data."})
+		seq := r.Bool(term.Flag{Name: "sequential", Desc: "Fill with sequential data."})
 		if err := r.Parse(); err != nil {
 			return err
 		}
@@ -136,13 +138,15 @@ var MemCommands = []term.Command{
 
 		data := make([]byte, *count)
 		for i := range data {
-			if *rnd {
+			switch {
+			case *seq:
+				data[i] = byte(i)
+			case *rnd:
 				data[i] = byte(rand.Intn(256))
-			} else {
+			default:
 				data[i] = *value
 			}
 		}
-
 		_, err := mem.WriteAt(data, int64(*start))
 		if err != nil {
 			return err
