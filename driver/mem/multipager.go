@@ -9,8 +9,9 @@ import (
 type MultiPager struct {
 	rws []io.ReadWriteSeeker
 
-	devMax     []int
-	devLastPos []int
+	devMax []int
+
+	devLastPos int
 
 	devPos int
 	devIdx int
@@ -24,7 +25,7 @@ func Join(rws ...io.ReadWriteSeeker) io.ReadWriteSeeker {
 	if len(rws) == 1 {
 		return rws[0]
 	}
-	m := &MultiPager{rws: rws}
+	m := &MultiPager{rws: rws, devLastPos: -1}
 	for _, rw := range rws {
 		l, err := rw.Seek(0, io.SeekEnd)
 		if err != nil {
@@ -32,7 +33,6 @@ func Join(rws ...io.ReadWriteSeeker) io.ReadWriteSeeker {
 		}
 		m.maxLen += int(l)
 		m.devMax = append(m.devMax, int(l))
-		m.devLastPos = append(m.devLastPos, -1)
 		_, err = rw.Seek(0, 0)
 		if err != nil {
 			panic(err)
@@ -47,7 +47,7 @@ func (m *MultiPager) eof() bool {
 }
 
 func (m *MultiPager) needSeek() bool {
-	return m.devPos != m.devLastPos[m.devIdx]
+	return m.devPos != m.devLastPos
 }
 
 func (m *MultiPager) remBytes() int {
@@ -55,15 +55,15 @@ func (m *MultiPager) remBytes() int {
 }
 
 func (m *MultiPager) remDevBytes() int {
-	return m.devMax[m.devIdx] - m.devLastPos[m.devIdx]
+	return m.devMax[m.devIdx] - m.devPos
 }
 func (m *MultiPager) dev() io.ReadWriteSeeker { return m.rws[m.devIdx] }
 
 func (m *MultiPager) incrPos(n int) {
 	m.pos += n
 	m.devPos += n
-	m.devLastPos[m.devIdx] = m.devPos
-	if n < m.remDevBytes() {
+	m.devLastPos += n
+	if m.remDevBytes() > 0 {
 		return
 	}
 
@@ -71,6 +71,7 @@ func (m *MultiPager) incrPos(n int) {
 		panic("unaligned position")
 	}
 
+	m.devLastPos = -1
 	m.devIdx++
 	m.devPos = 0
 }
@@ -92,7 +93,7 @@ func (m *MultiPager) Read(p []byte) (n int, err error) {
 		}
 
 		np, err := m.dev().Seek(int64(m.devPos), 0)
-		m.devLastPos[m.devIdx] = int(np)
+		m.devLastPos = int(np)
 		if err != nil {
 			return 0, err
 		}
@@ -143,6 +144,7 @@ func (m *MultiPager) Seek(offset int64, whence int) (int64, error) {
 		m.devIdx = len(m.rws)
 		m.pos = int(offset)
 		m.devPos = 0
+		m.devLastPos = -1
 		return offset, nil
 	}
 
@@ -155,6 +157,7 @@ func (m *MultiPager) Seek(offset int64, whence int) (int64, error) {
 	}
 
 	m.devPos = int(offset)
+	m.devLastPos = -1
 
 	return int64(m.pos), nil
 }
@@ -179,22 +182,21 @@ func (m *MultiPager) Write(p []byte) (n int, err error) {
 		if err != nil {
 			return n + len(p) - len(buf), err
 		}
-		buf = buf[m.remDevBytes():]
+		buf = buf[n:]
 	}
 
 	if m.needSeek() {
 		if wa, ok := m.dev().(io.WriterAt); ok {
 			n, err = wa.WriteAt(buf, int64(m.devPos))
 			m.incrPos(n)
-			return n, err
+			return n + len(p) - len(buf), err
 		}
 
 		_, err = m.dev().Seek(int64(m.devPos), 0)
 		if err != nil {
-			return 0, err
+			return len(p) - len(buf), err
 		}
 	}
-
 	n, err = m.dev().Write(buf)
 	m.incrPos(n)
 	return n + len(p) - len(buf), err
