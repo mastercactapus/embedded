@@ -3,7 +3,10 @@
 
 package main
 
-import "machine"
+import (
+	"io"
+	"machine"
+)
 
 func configIO() (io.Reader, io.Writer) {
 	err := machine.Serial.Configure(machine.UARTConfig{

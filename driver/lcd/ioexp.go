@@ -84,22 +84,22 @@ func (e *Expander) getPin(o driver.OutputPin) byte {
 }
 
 func (e *Expander) write8Bits(data byte) {
-	e.setPin(e.DB0, data&0x01 != 0)
-	e.setPin(e.DB1, data&0x02 != 0)
-	e.setPin(e.DB2, data&0x04 != 0)
-	e.setPin(e.DB3, data&0x08 != 0)
-	e.setPin(e.DB4, data&0x10 != 0)
-	e.setPin(e.DB5, data&0x20 != 0)
-	e.setPin(e.DB6, data&0x40 != 0)
-	e.setPin(e.DB7, data&0x80 != 0)
+	e.setPin(e.DB0, data&(1<<0) != 0)
+	e.setPin(e.DB1, data&(1<<1) != 0)
+	e.setPin(e.DB2, data&(1<<2) != 0)
+	e.setPin(e.DB3, data&(1<<3) != 0)
+	e.setPin(e.DB4, data&(1<<4) != 0)
+	e.setPin(e.DB5, data&(1<<5) != 0)
+	e.setPin(e.DB6, data&(1<<6) != 0)
+	e.setPin(e.DB7, data&(1<<7) != 0)
 	e.pulseWrite()
 }
 
 func (e *Expander) write4Bits(data byte) {
-	e.setPin(e.DB4, data&0x10 != 0)
-	e.setPin(e.DB5, data&0x20 != 0)
-	e.setPin(e.DB6, data&0x40 != 0)
-	e.setPin(e.DB7, data&0x80 != 0)
+	e.setPin(e.DB4, data&(1<<4) != 0)
+	e.setPin(e.DB5, data&(1<<5) != 0)
+	e.setPin(e.DB6, data&(1<<6) != 0)
+	e.setPin(e.DB7, data&(1<<7) != 0)
 	e.pulseWrite()
 }
 
@@ -117,68 +117,70 @@ func (e *Expander) pulseWrite() {
 	e.flush()
 }
 
-func (e *Expander) writeByte(data byte) error {
+func (e *Expander) writeByte(data byte) {
 	if e.eightBitMode {
 		e.write8Bits(data)
 	} else {
-		e.write4Bits(data >> 4)
 		e.write4Bits(data)
+		e.write4Bits(data << 4)
 	}
-
-	return e.readErr()
 }
 
 func (e *Expander) read8Bits() (b byte) {
 	e.refresh()
-	b |= 0 << e.getPin(e.DB0)
-	b |= 1 << e.getPin(e.DB1)
-	b |= 2 << e.getPin(e.DB2)
-	b |= 3 << e.getPin(e.DB3)
-	b |= 4 << e.getPin(e.DB4)
-	b |= 5 << e.getPin(e.DB5)
-	b |= 6 << e.getPin(e.DB6)
-	b |= 7 << e.getPin(e.DB7)
+	b |= e.getPin(e.DB0) << 0
+	b |= e.getPin(e.DB1) << 1
+	b |= e.getPin(e.DB2) << 2
+	b |= e.getPin(e.DB3) << 3
+	b |= e.getPin(e.DB4) << 4
+	b |= e.getPin(e.DB5) << 5
+	b |= e.getPin(e.DB6) << 6
+	b |= e.getPin(e.DB7) << 7
 	return b
 }
 
 func (e *Expander) read4Bits() (b byte) {
 	e.refresh()
-	b |= 0 << e.getPin(e.DB4)
-	b |= 1 << e.getPin(e.DB5)
-	b |= 2 << e.getPin(e.DB6)
-	b |= 3 << e.getPin(e.DB7)
+	b |= e.getPin(e.DB4) << 4
+	b |= e.getPin(e.DB5) << 5
+	b |= e.getPin(e.DB6) << 6
+	b |= e.getPin(e.DB7) << 7
 	return b
 }
 
 func (e *Expander) eHigh() { e.setPin(e.E, true); e.flush() }
 func (e *Expander) eLow()  { e.setPin(e.E, false); e.flush() }
 
-func (e *Expander) readByte() (b byte, err error) {
+func (e *Expander) readByte() (b byte) {
 	e.flush()
 	e.eHigh()
 	if e.eightBitMode {
 		b = e.read8Bits()
 	} else {
-		b = e.read4Bits() << 4
+		b = e.read4Bits()
 		e.eLow()
 		e.eHigh()
-		b |= e.read4Bits()
+		b |= (e.read4Bits() >> 4)
 	}
 	e.eLow()
 
-	return b, e.readErr()
+	return b
 }
 
 func (e *Expander) WriteByteIR(data byte) error {
 	e.setPin(e.RS, false)
 	e.setPin(e.RW, false)
-	return e.writeByte(data)
+	e.writeByte(data)
+
+	return e.readErr()
 }
 
 func (e *Expander) WriteByte(data byte) error {
 	e.setPin(e.RS, true)
 	e.setPin(e.RW, false)
-	return e.writeByte(data)
+	e.writeByte(data)
+
+	return e.readErr()
 }
 
 func (e *Expander) ReadByteIR() (byte, error) {
@@ -187,7 +189,7 @@ func (e *Expander) ReadByteIR() (byte, error) {
 	}
 	e.setPin(e.RS, false)
 	e.setPin(e.RW, true)
-	return e.readByte()
+	return e.readByte(), e.readErr()
 }
 
 func (e *Expander) refresh() {
@@ -216,5 +218,5 @@ func (e *Expander) ReadByte() (byte, error) {
 	}
 	e.setPin(e.RS, true)
 	e.setPin(e.RW, true)
-	return e.readByte()
+	return e.readByte(), e.readErr()
 }

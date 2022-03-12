@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/mastercactapus/embedded/driver"
 	"github.com/mastercactapus/embedded/driver/ioexp"
 	"github.com/mastercactapus/embedded/serial/i2c"
 )
@@ -34,14 +35,17 @@ const (
 func NewHD44780I2C(bus i2c.Bus, addr uint16, cfg Config) (*HD44780, error) {
 	pcf := ioexp.NewPCF8574(bus, addr)
 	return NewHD44780(NewExpander(ExpanderConfig{
-		RS:  pcf.Pin(0),
-		RW:  pcf.Pin(1),
-		E:   pcf.Pin(2),
-		BL:  pcf.Pin(3),
-		DB4: pcf.Pin(4),
-		DB5: pcf.Pin(5),
-		DB6: pcf.Pin(6),
-		DB7: pcf.Pin(7),
+		RS:  pcf.BufferedPin(0),
+		RW:  pcf.BufferedPin(1),
+		E:   pcf.BufferedPin(2),
+		BL:  pcf.BufferedPin(3),
+		DB4: pcf.BufferedPin(4),
+		DB5: pcf.BufferedPin(5),
+		DB6: pcf.BufferedPin(6),
+		DB7: pcf.BufferedPin(7),
+
+		Flush:   pcf.Flush,
+		Refresh: pcf.Refresh,
 	}), cfg)
 }
 
@@ -69,6 +73,7 @@ func NewHD44780(c Controller, cfg Config) (*HD44780, error) {
 }
 
 func (lcd *HD44780) init() error {
+	lcd.err = nil
 	lcd.c.SetBacklight(true)
 	time.Sleep(50 * time.Millisecond)
 	if !lcd.c.IsEightBitMode() {
@@ -110,7 +115,7 @@ func (lcd *HD44780) waitFor(dur time.Duration) error {
 
 	for {
 		b, err := lcd.c.ReadByteIR()
-		if errors.Is(err, ioexp.ErrWriteOnly) {
+		if errors.Is(err, driver.ErrNotSupported) {
 			lcd.writeOnly = true
 			time.Sleep(dur)
 			break
