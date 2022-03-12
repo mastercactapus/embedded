@@ -1,74 +1,123 @@
 package i2c
 
-import "time"
-
-type Pin interface {
-	PullupHigh()
-	OutputLow()
-	Get() bool
-}
+import (
+	"github.com/mastercactapus/embedded/driver"
+)
 
 type softCtrl struct {
-	sda, scl Pin
+	sda, scl driver.Pin
+	err      error
 }
 
-func NewSoftController(scl, sda Pin) Controller {
+// NewSoftController will create a generic I2C controller.
+// Pins should be configured as inputs with pull-up and output
+// should be logic-low.
+func NewSoftController(sda, scl driver.Pin) Controller {
+	sda.High()
+	sda.Input()
+	scl.High()
+	scl.Input()
 	return &softCtrl{scl: scl, sda: sda}
 }
 
-func (s *softCtrl) wait() {
-	time.Sleep(5 * time.Microsecond)
+func (s *softCtrl) setHigh(p driver.Pin) {
+	if s.err != nil {
+		return
+	}
+
+	s.err = p.Input()
+	if s.err != nil {
+		return
+	}
+	s.err = p.High()
 }
 
-func (s *softCtrl) clockUp() {
-	s.scl.PullupHigh()
-	for !s.scl.Get() {
+func (s *softCtrl) setLow(p driver.Pin) {
+	if s.err != nil {
+		return
+	}
+	s.err = p.Output()
+	if s.err != nil {
+		return
+	}
+	s.err = p.Low()
+}
+
+func (s *softCtrl) get(p driver.Pin) (val bool) {
+	if s.err != nil {
+		return false
+	}
+
+	val, s.err = p.Get()
+	return val
+}
+
+func (s *softCtrl) waitHigh(p driver.Pin) {
+	if s.err != nil {
+		return
+	}
+	s.setHigh(p)
+	if s.err != nil {
+		return
+	}
+	var v bool
+	// TODO: timeout
+	for {
+		v, s.err = p.Get()
+		if s.err != nil {
+			return
+		}
+		if v {
+			return
+		}
 	}
 }
+
+func (s *softCtrl) clockUp() { s.waitHigh(s.scl) }
 
 func (s *softCtrl) Start() {
 	s.clockUp()
 	s.wait()
-	s.sda.OutputLow()
+	s.setLow(s.sda)
 	s.wait()
-	s.scl.OutputLow()
+	s.setLow(s.scl)
 	s.wait()
 }
 
 func (s *softCtrl) Stop() {
-	s.scl.PullupHigh()
-	s.sda.PullupHigh()
+	s.clockUp()
+	s.waitHigh(s.sda)
 }
 
 func (s *softCtrl) WriteBit(bit bool) {
 	if bit {
-		s.sda.PullupHigh()
+		s.setHigh(s.sda)
 	} else {
-		s.sda.OutputLow()
+		s.setLow(s.sda)
 	}
 	s.wait()
 	s.clockUp()
 	s.wait()
-	s.scl.OutputLow()
+	s.setLow(s.scl)
 	s.wait()
 }
 
 func (s *softCtrl) ReadBit() (value bool) {
-	s.sda.PullupHigh()
+	s.setHigh(s.sda)
 	s.wait()
 	s.clockUp()
 	s.wait()
-	value = s.sda.Get()
+	value = s.get(s.sda)
 	if !value {
 		// keep it low
-		s.sda.OutputLow()
+		s.setLow(s.sda)
 	}
 	s.wait()
-	s.scl.OutputLow()
+	s.setLow(s.scl)
 	s.wait()
 
 	if !value {
-		s.sda.PullupHigh()
+		s.setHigh(s.sda)
 	}
 	return value
 }

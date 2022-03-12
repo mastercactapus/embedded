@@ -32,7 +32,17 @@ const (
 )
 
 func NewHD44780I2C(bus i2c.Bus, addr uint16, cfg Config) (*HD44780, error) {
-	return NewHD44780(NewExpander(ioexp.NewPCF8574(bus, addr)), cfg)
+	pcf := ioexp.NewPCF8574(bus, addr)
+	return NewHD44780(NewExpander(ExpanderConfig{
+		RS:  pcf.Pin(0),
+		RW:  pcf.Pin(1),
+		E:   pcf.Pin(2),
+		BL:  pcf.Pin(3),
+		DB4: pcf.Pin(4),
+		DB5: pcf.Pin(5),
+		DB6: pcf.Pin(6),
+		DB7: pcf.Pin(7),
+	}), cfg)
 }
 
 func NewHD44780(c Controller, cfg Config) (*HD44780, error) {

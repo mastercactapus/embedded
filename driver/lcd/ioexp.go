@@ -3,203 +3,218 @@ package lcd
 import (
 	"errors"
 
+	"github.com/mastercactapus/embedded/driver"
 	"github.com/mastercactapus/embedded/driver/ioexp"
 )
 
-const (
-	RS = 0
-	RW = 1
-	E  = 2
-
-	BL = 3
-
-	DB4 = 4
-	DB5 = 5
-	DB6 = 6
-	DB7 = 7
-
-	DB0 = 8
-	DB1 = 7
-	DB2 = 10
-	DB3 = 11
-)
-
 type Expander struct {
-	w ioexp.PinWriter
-
 	eightBitMode bool
 	backlight    bool
 	writeOnly    bool
+	err          error
 
-	pins ioexp.PinState
+	ExpanderConfig
 }
 
-func NewExpander(w ioexp.PinWriter) *Expander {
-	if w.PinCount() < 8 {
-		panic("lcd: ioexpander must have at least 8 pins")
+type ExpanderConfig struct {
+	RS driver.OutputPin
+	RW driver.OutputPin
+	E  driver.OutputPin
+	BL driver.OutputPin
+
+	// Read operations will only be enabled if the DB_ pins also implement
+	// the ioexp.InputPin interface.
+	DB4 driver.OutputPin
+	DB5 driver.OutputPin
+	DB6 driver.OutputPin
+	DB7 driver.OutputPin
+
+	// optional
+	DB0 driver.OutputPin
+	DB1 driver.OutputPin
+	DB2 driver.OutputPin
+	DB3 driver.OutputPin
+
+	// Flush, if set, will be called after updating pins for writing.
+	Flush func() error
+
+	// Refresh, if set, will be called before reading pins.
+	Refresh func() error
+}
+
+func NewExpander(cfg ExpanderConfig) *Expander {
+	exp := &Expander{
+		backlight:      true,
+		ExpanderConfig: cfg,
 	}
-	return &Expander{
-		w: w,
-
-		eightBitMode: w.PinCount() >= 12,
-		backlight:    true,
-
-		pins: make(ioexp.PinBool, w.PinCount()),
-	}
-}
-func (e *Expander) IsEightBitMode() bool { return e.eightBitMode }
-func (e *Expander) SetBacklight(value bool) error {
-	e.pins.Set(BL, value)
-	return e.w.WritePins(e.pins)
-}
-
-func (e *Expander) write8Bits(data byte) error {
-	e.pins.Set(DB0, data&0x01 != 0)
-	e.pins.Set(DB1, data&0x02 != 0)
-	e.pins.Set(DB2, data&0x04 != 0)
-	e.pins.Set(DB3, data&0x08 != 0)
-	e.pins.Set(DB4, data&0x10 != 0)
-	e.pins.Set(DB5, data&0x20 != 0)
-	e.pins.Set(DB6, data&0x40 != 0)
-	e.pins.Set(DB7, data&0x80 != 0)
-	return e.pulseWrite()
-}
-
-func (e *Expander) write4Bits(data byte) error {
-	e.pins.Set(DB4, data&0x01 != 0)
-	e.pins.Set(DB5, data&0x02 != 0)
-	e.pins.Set(DB6, data&0x04 != 0)
-	e.pins.Set(DB7, data&0x08 != 0)
-	return e.pulseWrite()
-}
-
-func (e *Expander) pulseWrite() error {
-	err := e.w.WritePins(e.pins)
-	if err != nil {
-		return err
+	if cfg.DB0 != nil && cfg.DB1 != nil && cfg.DB2 != nil && cfg.DB3 != nil {
+		exp.eightBitMode = true
 	}
 
-	e.pins.Set(E, true)
-	err = e.w.WritePins(e.pins)
-	if err != nil {
-		return err
-	}
+	return exp
+}
+func (e *Expander) IsEightBitMode() bool          { return e.eightBitMode }
+func (e *Expander) SetBacklight(value bool) error { return e.BL.Set(value) }
 
-	e.pins.Set(E, false)
-	return e.w.WritePins(e.pins)
+func (e *Expander) setPin(o driver.OutputPin, value bool) {
+	if e.err != nil {
+		return
+	}
+	e.err = o.Set(value)
+}
+
+func (e *Expander) getPin(o driver.OutputPin) byte {
+	if e.err != nil {
+		return 0
+	}
+	if ip, ok := o.(driver.InputPin); ok {
+		var v bool
+		v, e.err = ip.Get()
+		if errors.Is(e.err, driver.ErrNotSupported) {
+			e.writeOnly = true
+		}
+		if v {
+			return 1
+		}
+		return 0
+	}
+	e.writeOnly = true
+	e.err = driver.ErrNotSupported
+	return 0
+}
+
+func (e *Expander) write8Bits(data byte) {
+	e.setPin(e.DB0, data&0x01 != 0)
+	e.setPin(e.DB1, data&0x02 != 0)
+	e.setPin(e.DB2, data&0x04 != 0)
+	e.setPin(e.DB3, data&0x08 != 0)
+	e.setPin(e.DB4, data&0x10 != 0)
+	e.setPin(e.DB5, data&0x20 != 0)
+	e.setPin(e.DB6, data&0x40 != 0)
+	e.setPin(e.DB7, data&0x80 != 0)
+	e.pulseWrite()
+}
+
+func (e *Expander) write4Bits(data byte) {
+	e.setPin(e.DB4, data&0x10 != 0)
+	e.setPin(e.DB5, data&0x20 != 0)
+	e.setPin(e.DB6, data&0x40 != 0)
+	e.setPin(e.DB7, data&0x80 != 0)
+	e.pulseWrite()
+}
+
+func (e *Expander) readErr() (err error) {
+	err = e.err
+	e.err = nil
+	return err
+}
+
+func (e *Expander) pulseWrite() {
+	e.flush()
+	e.setPin(e.E, true)
+	e.flush()
+	e.setPin(e.E, false)
+	e.flush()
 }
 
 func (e *Expander) writeByte(data byte) error {
 	if e.eightBitMode {
-		return e.write8Bits(data)
+		e.write8Bits(data)
+	} else {
+		e.write4Bits(data >> 4)
+		e.write4Bits(data)
 	}
 
-	err := e.write4Bits(data >> 4)
-	if err != nil {
-		return err
-	}
-
-	return e.write4Bits(data)
+	return e.readErr()
 }
 
-func (e *Expander) readBits(pr ioexp.PinReader) (b byte, err error) {
+func (e *Expander) read8Bits() (b byte) {
+	e.refresh()
+	b |= 0 << e.getPin(e.DB0)
+	b |= 1 << e.getPin(e.DB1)
+	b |= 2 << e.getPin(e.DB2)
+	b |= 3 << e.getPin(e.DB3)
+	b |= 4 << e.getPin(e.DB4)
+	b |= 5 << e.getPin(e.DB5)
+	b |= 6 << e.getPin(e.DB6)
+	b |= 7 << e.getPin(e.DB7)
+	return b
+}
+
+func (e *Expander) read4Bits() (b byte) {
+	e.refresh()
+	b |= 0 << e.getPin(e.DB4)
+	b |= 1 << e.getPin(e.DB5)
+	b |= 2 << e.getPin(e.DB6)
+	b |= 3 << e.getPin(e.DB7)
+	return b
+}
+
+func (e *Expander) eHigh() { e.setPin(e.E, true); e.flush() }
+func (e *Expander) eLow()  { e.setPin(e.E, false); e.flush() }
+
+func (e *Expander) readByte() (b byte, err error) {
+	e.flush()
+	e.eHigh()
 	if e.eightBitMode {
-		e.pins.Set(DB0, true)
-		e.pins.Set(DB1, true)
-		e.pins.Set(DB2, true)
-		e.pins.Set(DB3, true)
+		b = e.read8Bits()
+	} else {
+		b = e.read4Bits() << 4
+		e.eLow()
+		e.eHigh()
+		b |= e.read4Bits()
 	}
-	e.pins.Set(DB4, true)
-	e.pins.Set(DB5, true)
-	e.pins.Set(DB6, true)
-	e.pins.Set(DB7, true)
-	err = e.w.WritePins(e.pins)
-	if err != nil {
-		return 0, err
-	}
+	e.eLow()
 
-	e.pins.Set(E, true)
-	err = e.w.WritePins(e.pins)
-	if err != nil {
-		return 0, err
-	}
-
-	pins, err := pr.ReadPins()
-	if errors.Is(err, ioexp.ErrWriteOnly) {
-		e.writeOnly = true
-		// set E back to false
-		e.pins.Set(E, false)
-		if err := e.w.WritePins(e.pins); err != nil {
-			return 0, err
-		}
-		return 0, err
-	}
-	if err != nil {
-		return 0, err
-	}
-
-	e.pins.Set(E, false)
-	err = e.w.WritePins(e.pins)
-
-	if e.eightBitMode {
-		return ioexp.PinByte(pins), err
-	}
-	return ioexp.PinByte(pins) & 0x0f, err
+	return b, e.readErr()
 }
 
 func (e *Expander) WriteByteIR(data byte) error {
-	e.pins.Set(RS, false)
-	e.pins.Set(RW, false)
+	e.setPin(e.RS, false)
+	e.setPin(e.RW, false)
 	return e.writeByte(data)
 }
 
 func (e *Expander) WriteByte(data byte) error {
-	e.pins.Set(RS, true)
-	e.pins.Set(RW, false)
+	e.setPin(e.RS, true)
+	e.setPin(e.RW, false)
 	return e.writeByte(data)
-}
-
-func (e *Expander) readByte() (b byte, err error) {
-	pr, ok := e.w.(ioexp.PinReader)
-	if !ok {
-		e.writeOnly = true
-		return 0, ioexp.ErrWriteOnly
-	}
-	if e.eightBitMode {
-		return e.readBits(pr)
-	}
-
-	b1, err := e.readBits(pr)
-	if err != nil {
-		return 0, err
-	}
-
-	b, err = e.readBits(pr)
-	if err != nil {
-		return 0, err
-	}
-
-	return b1<<4 | b, nil
 }
 
 func (e *Expander) ReadByteIR() (byte, error) {
 	if e.writeOnly {
-		return 0, ioexp.ErrWriteOnly
+		return 0, driver.ErrNotSupported
 	}
-
-	e.pins.Set(RS, false)
-	e.pins.Set(RW, true)
-
+	e.setPin(e.RS, false)
+	e.setPin(e.RW, true)
 	return e.readByte()
+}
+
+func (e *Expander) refresh() {
+	if e.err != nil {
+		return
+	}
+	if e.Refresh == nil {
+		return
+	}
+	e.err = e.Refresh()
+}
+
+func (e *Expander) flush() {
+	if e.err != nil {
+		return
+	}
+	if e.Flush == nil {
+		return
+	}
+	e.err = e.Flush()
 }
 
 func (e *Expander) ReadByte() (byte, error) {
 	if e.writeOnly {
 		return 0, ioexp.ErrWriteOnly
 	}
-
-	e.pins.Set(RS, true)
-	e.pins.Set(RW, true)
-
+	e.setPin(e.RS, true)
+	e.setPin(e.RW, true)
 	return e.readByte()
 }

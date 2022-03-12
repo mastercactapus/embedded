@@ -9,19 +9,6 @@ import (
 	"machine"
 )
 
-type pinCtrl uint32
-
-func NewPin(pin machine.Pin) Pin {
-	pin.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
-	pin.Low()
-
-	return pinCtrl(1 << pin)
-}
-
-func (p pinCtrl) OutputLow()  { rp.SIO.GPIO_OE_SET.Set(uint32(p)) }
-func (p pinCtrl) PullupHigh() { rp.SIO.GPIO_OE_CLR.Set(uint32(p)) }
-func (p pinCtrl) Get() bool   { return rp.SIO.GPIO_IN.HasBits(uint32(p)) }
-
 // TODO: revisit clock timing vs. baud
 type ctrl struct {
 	sdaMask, sclMask uint32

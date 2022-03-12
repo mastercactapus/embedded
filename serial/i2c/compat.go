@@ -1,11 +1,5 @@
 package i2c
 
-import (
-	"tinygo.org/x/drivers"
-)
-
-var _ drivers.I2C = (*I2C)(nil)
-
 func (i2c *I2C) WriteRegister(addr, reg byte, p []byte) error {
 	i2c.Start()
 	defer i2c.Stop()

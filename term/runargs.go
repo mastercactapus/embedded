@@ -30,13 +30,18 @@ func (r *RunArgs) WaitForInterrupt() bool {
 		return false
 	}
 
-	select {
-	case c := <-r.Input():
-		if c == Interrupt {
-			r.interrupt = true
-			return false
+consumeInput:
+	for {
+		select {
+		case c := <-r.Input():
+			if c == Interrupt {
+				r.interrupt = true
+				return false
+			}
+			continue
+		default:
+			break consumeInput
 		}
-	default:
 	}
 
 	runtime.Gosched()

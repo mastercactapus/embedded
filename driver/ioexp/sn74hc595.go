@@ -1,62 +1,116 @@
 package ioexp
 
+import (
+	"github.com/mastercactapus/embedded/driver"
+)
+
 type SN74HC595 struct {
-	w    PinWriter
-	pins PinBool
+	cfg SN74HC595Config
 
-	m *PinMasker
+	state []uint8
+	clean bool
+	err   error
 }
 
-var _ PinWriter = (*SN74HC595)(nil)
+type SN74HC595Config struct {
+	SRCLK driver.OutputPin
+	RCLK  driver.OutputPin
+	SER   driver.OutputPin
 
-// NewSN74HC595 creates a PinWriter that writes to a 74HC595 shift register.
-//
-// The provided PinWriter should control the following pins:
-// 0: SRCLK (shift register clock)
-// 1: RCLK (storage register clock/latch)
-// 2: SER (serial data)
-func NewSN74HC595(w PinWriter, bits int) *SN74HC595 {
+	// Optionally set the clear pin before writing data.
+	SRCLR driver.OutputPin
+}
+
+func NewSN74HC595(cfg SN74HC595Config) *SN74HC595 {
 	return &SN74HC595{
-		w:    w,
-		pins: make(PinBool, 3),
-		m:    NewPinMasker(bits),
+		cfg: cfg,
 	}
 }
 
-func (s *SN74HC595) PinCount() int { return s.pins.Len() }
+// Configure sets the starting state of the shift register.
+//
+// If there are multiple registers chained together, the first
+// state value should be the first register in the chain.
+func (s *SN74HC595) Configure(state ...uint8) error {
+	s.state = make([]uint8, len(state))
+	// copy in reverse order
+	for i, v := range state {
+		s.state[len(state)-1-i] = v
+	}
 
-func (s *SN74HC595) writeBit(val bool) (err error) {
-	s.pins.Set(2, val)
-	if err = s.w.WritePins(s.pins); err != nil {
-		return err
-	}
-	s.pins.Set(0, true)
-	if err = s.w.WritePins(s.pins); err != nil {
-		return err
-	}
-	s.pins.Set(0, false)
-	if err = s.w.WritePins(s.pins); err != nil {
-		return err
-	}
-	return nil
+	return s.write()
 }
 
-func (s *SN74HC595) WritePins(pins Valuer) (err error) {
-	s.pins.SetAll(false)
-	for i := s.PinCount() - 1; i >= 0; i-- {
-		if err = s.writeBit(pins.Value(i)); err != nil {
-			return err
+func (s *SN74HC595) PinCount() int { return len(s.state) * 8 }
+
+func (s *SN74HC595) Pin(n int) driver.Pin {
+	return &driver.PinFN{
+		N:       n,
+		SetFunc: s.setPin,
+	}
+}
+
+func (s *SN74HC595) setPin(n int, v bool) error {
+	if v {
+		s.state[n/8] |= 1 << uint(n%8)
+	} else {
+		s.state[n/8] &= ^(1 << uint(n%8))
+	}
+	return s.write()
+}
+
+func (s *SN74HC595) write() error {
+	if s.cfg.SRCLR != nil {
+		s.pulse(s.cfg.SRCLR)
+	} else if !s.clean {
+		s.setLow(s.cfg.SER)
+		for i := s.PinCount(); i > 0; i-- {
+			s.pulse(s.cfg.SRCLK)
+		}
+		s.clean = true
+	}
+
+	for _, b := range s.state {
+		for i := uint(0); i < 8; i++ {
+			s.writeBit(b&(1<<i) != 0)
 		}
 	}
-	s.pins.SetAll(false)
-	s.pins.Set(1, true)
-	if err = s.w.WritePins(s.pins); err != nil {
-		return err
-	}
-	s.pins.Set(1, false)
-	return s.w.WritePins(s.pins)
+
+	s.pulse(s.cfg.RCLK)
+
+	err := s.err
+	s.err = nil
+	s.clean = err == nil
+	return err
 }
 
-func (s *SN74HC595) WritePinsMask(pins, mask Valuer) error {
-	return s.m.ApplyFn(pins, mask, s.WritePins)
+func (s *SN74HC595) setHigh(p driver.OutputPin) {
+	if s.err != nil {
+		return
+	}
+	s.err = p.High()
+}
+
+func (s *SN74HC595) setLow(p driver.OutputPin) {
+	if s.err != nil {
+		return
+	}
+	s.err = p.Low()
+}
+
+func (s *SN74HC595) pulse(p driver.OutputPin) {
+	if s.err != nil {
+		return
+	}
+	s.setHigh(p)
+	s.setLow(p)
+}
+
+func (s *SN74HC595) writeBit(val bool) {
+	if val {
+		s.setHigh(s.cfg.SER)
+	} else {
+		s.setLow(s.cfg.SER)
+	}
+	s.pulse(s.cfg.SRCLK)
 }
