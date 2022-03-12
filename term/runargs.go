@@ -11,7 +11,8 @@ type RunArgs struct {
 	*Flags
 	*ansi.Printer
 
-	sh *Shell
+	interrupt bool
+	sh        *Shell
 }
 
 const Interrupt rune = 0x03
@@ -25,9 +26,14 @@ func (r *RunArgs) Input() <-chan rune {
 
 // WaitForInterrupt will return true until CTRL+C is pressed.
 func (r *RunArgs) WaitForInterrupt() bool {
+	if r.interrupt {
+		return false
+	}
+
 	select {
 	case c := <-r.Input():
 		if c == Interrupt {
+			r.interrupt = true
 			return false
 		}
 	default:
