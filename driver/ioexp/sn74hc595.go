@@ -38,7 +38,7 @@ func (s *SN74HC595) Configure(state ...uint8) error {
 		s.state[len(state)-1-i] = v
 	}
 
-	return s.write()
+	return s.Flush()
 }
 
 func (s *SN74HC595) PinCount() int { return len(s.state) * 8 }
@@ -50,16 +50,28 @@ func (s *SN74HC595) Pin(n int) driver.Pin {
 	}
 }
 
-func (s *SN74HC595) setPin(n int, v bool) error {
+func (s *SN74HC595) BufferedPin(n int) driver.Pin {
+	return &driver.PinFN{
+		N:       n,
+		SetFunc: s.setPinBuf,
+	}
+}
+
+func (s *SN74HC595) setPinBuf(n int, v bool) error {
 	if v {
 		s.state[n/8] |= 1 << uint(n%8)
 	} else {
 		s.state[n/8] &= ^(1 << uint(n%8))
 	}
-	return s.write()
+	return nil
 }
 
-func (s *SN74HC595) write() error {
+func (s *SN74HC595) setPin(n int, v bool) error {
+	s.setPinBuf(n, v)
+	return s.Flush()
+}
+
+func (s *SN74HC595) Flush() error {
 	if s.cfg.SRCLR != nil {
 		s.pulse(s.cfg.SRCLR)
 	} else if !s.clean {

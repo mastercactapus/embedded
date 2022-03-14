@@ -15,6 +15,8 @@ type MCP23X08 struct {
 	PullupPins  uint8
 	InputPins   uint8
 	OutputState uint8
+
+	lastRead uint8
 }
 
 const (
@@ -40,14 +42,14 @@ func NewMCP23X08(rw io.ReadWriter) *MCP23X08 {
 
 func (MCP23X08) PinCount() int { return 8 }
 
-func (m *MCP23X08) Configure() error {
+func (m *MCP23X08) Flush() error {
 	if err := m.write(mcp8RegGPPU, m.PullupPins); err != nil {
 		return err
 	}
 	if err := m.write(mcp8RegIODIR, m.InputPins); err != nil {
 		return err
 	}
-	if err := m.write(mcp8RegIPOL, m.InputPins); err != nil {
+	if err := m.write(mcp8RegIPOL, m.InvertPins); err != nil {
 		return err
 	}
 	if err := m.write(mcp8RegOLAT, m.OutputState); err != nil {
@@ -70,42 +72,69 @@ func (m *MCP23X08) Pin(n int) driver.Pin {
 	}
 }
 
-func (m *MCP23X08) setIODIR(n int, v bool) error {
+func (m *MCP23X08) BufferedPin(n int) driver.Pin {
+	return &driver.PinFN{
+		N:            n,
+		GetFunc:      m.getPinBuf,
+		SetInputFunc: m.setIODIRBuf,
+		SetFunc:      m.setOLATBuf,
+	}
+}
+
+func (m *MCP23X08) setIODIRBuf(n int, v bool) error {
 	if v {
 		m.InputPins |= 1 << uint8(n)
 	} else {
 		m.InputPins &= ^(1 << uint8(n))
 	}
-	return m.write(mcp8RegIODIR, m.OutputState)
+	return nil
 }
 
-func (m *MCP23X08) setOLAT(n int, v bool) error {
+func (m *MCP23X08) setIODIR(n int, v bool) error {
+	m.setIODIRBuf(n, v)
+	return m.write(mcp8RegIODIR, m.InputPins)
+}
+
+func (m *MCP23X08) setOLATBuf(n int, v bool) error {
 	if v {
 		m.OutputState |= 1 << uint8(n)
 	} else {
 		m.OutputState &= ^(1 << uint8(n))
 	}
+	return nil
+}
+
+func (m *MCP23X08) setOLAT(n int, v bool) error {
+	m.setOLATBuf(n, v)
 	return m.write(mcp8RegOLAT, m.OutputState)
 }
 
-func (m *MCP23X08) getPin(n int) (bool, error) {
-	b, err := m.read()
-	if err != nil {
-		return false, err
-	}
-
-	return b&(1<<uint(n)) != 0, nil
+func (m *MCP23X08) getPinBuf(n int) (bool, error) {
+	return m.lastRead&(1<<uint(n)) != 0, nil
 }
 
-func (m *MCP23X08) read() (byte, error) {
+func (m *MCP23X08) getPin(n int) (bool, error) {
+	if err := m.Refresh(); err != nil {
+		return false, err
+	}
+	return m.getPinBuf(n)
+}
+
+func (m *MCP23X08) Refresh() error {
 	if br, ok := m.rw.(io.ByteReader); ok {
-		return br.ReadByte()
+		b, err := br.ReadByte()
+		if err != nil {
+			return err
+		}
+		m.lastRead = b
+		return nil
 	}
 
 	var buf [1]byte
 	_, err := m.rw.Read(buf[:])
 	if err != nil {
-		return 0, err
+		return err
 	}
-	return buf[0], nil
+	m.lastRead = buf[0]
+	return nil
 }
