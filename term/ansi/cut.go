@@ -2,7 +2,6 @@ package ansi
 
 import (
 	"bytes"
-	"strings"
 )
 
 func CutAfter(p []byte, sep byte) ([]byte, []byte) {
@@ -15,7 +14,7 @@ func CutAfter(p []byte, sep byte) ([]byte, []byte) {
 }
 
 func Cut(s string, sep byte) (string, string) {
-	idx := strings.IndexByte(s, sep)
+	idx := bytes.IndexByte([]byte(s), sep)
 	if idx < 0 {
 		return s, ""
 	}

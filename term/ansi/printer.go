@@ -1,8 +1,9 @@
 package ansi
 
 import (
-	"fmt"
 	"io"
+
+	"github.com/mastercactapus/embedded/term/ascii"
 )
 
 type Printer struct {
@@ -18,10 +19,6 @@ func NewPrinter(w io.Writer) *Printer {
 	}
 
 	return &Printer{w: w}
-}
-
-func (pr *Printer) Indent(prefix string) *Printer {
-	return NewPrinter(NewIndentWriter(pr, prefix))
 }
 
 func (pr *Printer) Err() error {
@@ -62,9 +59,9 @@ func (pr *Printer) Write(p []byte) (n int, err error) {
 
 func (p *Printer) WriteString(s string) (int, error) { return p.Write([]byte(s)) }
 
-func (p *Printer) Print(a ...interface{})                 { fmt.Fprint(p, a...) }
-func (p *Printer) Println(a ...interface{})               { fmt.Fprintln(p, a...) }
-func (p *Printer) Printf(format string, a ...interface{}) { fmt.Fprintf(p, format, a...) }
+func (p *Printer) Print(a ...interface{})                 { ascii.Fprint(p, a...) }
+func (p *Printer) Println(a ...interface{})               { ascii.Fprintln(p, a...) }
+func (p *Printer) Printf(format string, a ...interface{}) { ascii.Fprintf(p, format, a...) }
 
 func (p *Printer) HideCursor() { p.WriteString("\x1b[?25l") }
 func (p *Printer) ShowCursor() { p.WriteString("\x1b[?25h") }

@@ -1,8 +1,6 @@
 package bustool
 
 import (
-	"strconv"
-
 	"github.com/mastercactapus/embedded/driver"
 	"github.com/mastercactapus/embedded/driver/ioexp"
 	"github.com/mastercactapus/embedded/serial/i2c"
@@ -74,7 +72,7 @@ var ioCommands = []term.Command{
 
 		dev := r.Get("io").(driver.Pinner)
 		for _, arg := range r.Args() {
-			i, err := strconv.Atoi(arg)
+			i, err := term.ParseInt(arg)
 			if err != nil {
 				return err
 			}
@@ -93,7 +91,7 @@ var ioCommands = []term.Command{
 
 		dev := r.Get("io").(driver.Pinner)
 		for _, arg := range r.Args() {
-			i, err := strconv.Atoi(arg)
+			i, err := term.ParseInt(arg)
 			if err != nil {
 				return err
 			}
@@ -112,7 +110,7 @@ var ioCommands = []term.Command{
 
 		dev := r.Get("io").(driver.Pinner)
 		for _, arg := range r.Args() {
-			i, err := strconv.Atoi(arg)
+			i, err := term.ParseInt(arg)
 			if err != nil {
 				return err
 			}
@@ -131,7 +129,7 @@ var ioCommands = []term.Command{
 
 		dev := r.Get("io").(driver.Pinner)
 		for _, arg := range r.Args() {
-			i, err := strconv.Atoi(arg)
+			i, err := term.ParseInt(arg)
 			if err != nil {
 				return err
 			}

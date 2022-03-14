@@ -1,7 +1,6 @@
 package term
 
 import (
-	"fmt"
 	"runtime"
 
 	"github.com/mastercactapus/embedded/term/ansi"
@@ -15,27 +14,27 @@ type RunArgs struct {
 	sh        *Shell
 }
 
-const Interrupt rune = 0x03
+const Interrupt byte = 0x03
 
 // Input returns a rune reader for the shell.
 //
 // Zero values should be ignored.
-func (r *RunArgs) Input() <-chan rune {
-	return r.sh.r
+func (ra *RunArgs) Input() <-chan byte {
+	return ra.sh.inputCh
 }
 
 // WaitForInterrupt will return true until CTRL+C is pressed.
-func (r *RunArgs) WaitForInterrupt() bool {
-	if r.interrupt {
+func (ra *RunArgs) WaitForInterrupt() bool {
+	if ra.interrupt {
 		return false
 	}
 
 consumeInput:
 	for {
 		select {
-		case c := <-r.Input():
+		case c := <-ra.Input():
 			if c == Interrupt {
-				r.interrupt = true
+				ra.interrupt = true
 				return false
 			}
 			continue
@@ -48,11 +47,11 @@ consumeInput:
 	return true
 }
 
-func (r *RunArgs) Get(k string) interface{} {
-	val := r.sh.Get(k)
+func (ra *RunArgs) Get(k string) interface{} {
+	val := ra.sh.Get(k)
 	if val == nil {
-		panic(fmt.Sprintf("shell=%s: cmd=%s: get '%s': not set in this or parent shell", r.sh.path(), r.Flags.cmd.Args[0], k))
+		panic("shell=" + ra.sh.path() + ": cmd=" + ra.Flags.cmd.Args[0] + ": get '" + k + "': not set in this or parent shell")
 	}
 	return val
 }
-func (r *RunArgs) Set(k string, v interface{}) { r.sh.Set(k, v) }
+func (ra *RunArgs) Set(k string, v interface{}) { ra.sh.Set(k, v) }

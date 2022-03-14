@@ -9,7 +9,7 @@ import (
 type fixReader struct {
 	io.Reader
 
-	wait chan rune
+	wait chan byte
 }
 
 func (f *fixReader) Read(p []byte) (n int, err error) {

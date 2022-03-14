@@ -1,7 +1,6 @@
 package term
 
 import (
-	"bufio"
 	"errors"
 	"io"
 
@@ -11,10 +10,10 @@ import (
 type Shell struct {
 	name, desc string
 
-	parent *Shell
-	prompt *Prompt
-	w      *ansi.Printer
-	r      chan rune
+	parent  *Shell
+	prompt  *Prompt
+	w       *ansi.Printer
+	inputCh chan byte
 
 	commands []Command
 	shells   []Command
@@ -28,19 +27,26 @@ type Shell struct {
 func NewRootShell(name, desc string, in io.Reader, out io.Writer) *Shell {
 	p := ansi.NewPrinter(out)
 	sh := &Shell{
-		name: name,
-		desc: desc,
-		w:    p,
-		r:    make(chan rune),
-		env:  NewEnv(),
+		name:    name,
+		desc:    desc,
+		w:       p,
+		inputCh: make(chan byte),
+		env:     NewEnv(),
 	}
 	sh.prompt = NewPrompt(p, sh.path()+"> ")
 
 	go func() {
-		r := bufio.NewReader(&fixReader{Reader: in, wait: sh.r})
+		r := &fixReader{Reader: in, wait: sh.inputCh}
+		var buf [32]byte
 		for {
-			r, _, _ := r.ReadRune()
-			sh.r <- r
+			n, err := r.Read(buf[:])
+			if err != nil {
+				panic(err)
+			}
+
+			for _, b := range buf[:n] {
+				sh.inputCh <- b
+			}
 		}
 	}()
 
@@ -52,7 +58,7 @@ func (sh *Shell) SetNoExit(v bool) { sh.noExit = v }
 func (sh *Shell) Run() error {
 	sh.prompt.Draw()
 	for {
-		cmdLine, err := sh.prompt.NextCommand(<-sh.r)
+		cmdLine, err := sh.prompt.NextCommand(<-sh.inputCh)
 		if errors.Is(err, ErrInterrupt) {
 			sh.prompt.Draw()
 			continue
@@ -203,12 +209,12 @@ func (sh *Shell) NewSubShell(name, desc string, init func(RunArgs) error) *Shell
 		panic("Duplicate command: " + cmd.Name)
 	}
 	cmd.sh = &Shell{
-		name:   cmd.Name,
-		desc:   cmd.Desc,
-		parent: sh,
-		w:      sh.w,
-		r:      sh.r,
-		env:    NewEnv(),
+		name:    cmd.Name,
+		desc:    cmd.Desc,
+		parent:  sh,
+		w:       sh.w,
+		inputCh: sh.inputCh,
+		env:     NewEnv(),
 	}
 	cmd.sh.env.SetParent(sh.env)
 	cmd.sh.prompt = NewPrompt(sh.w, cmd.sh.path()+"> ")

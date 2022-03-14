@@ -14,7 +14,7 @@ type Prompt struct {
 	parse *ansi.Parser
 
 	prefix      string
-	input       []rune
+	input       []byte
 	pos         int
 	lastCommand string
 	hist        bool
@@ -37,30 +37,31 @@ func (p *Prompt) Draw() {
 	if p.pos < len(p.input) {
 		p.w.CursorBack(len(p.input) - p.pos)
 	}
-	p.w.Esc('h', 4)
 }
 
-func (p *Prompt) NextCommand(r rune) (*CmdLine, error) {
-	if r == 0 {
+func (p *Prompt) NextCommand(c byte) (*CmdLine, error) {
+	if c == 0 {
 		// special case, ignore entirely
 		// used to signal we are processing input
 		return nil, nil
 	}
 
-	switch p.parse.Next(r) {
+	switch p.parse.Next(c) {
 	case ansi.ValueInput:
 		if p.pos == len(p.input) {
-			p.input = append(p.input, r)
-			p.w.WriteString(string(r))
+			p.input = append(p.input, c)
+			p.w.WriteString(string(c))
 			p.pos++
 			break
 		}
-		p.input = append(p.input[:p.pos], append([]rune{r}, p.input[p.pos:]...)...)
-		p.w.WriteString(string(r))
+		p.input = append(p.input[:p.pos], append([]byte{c}, p.input[p.pos:]...)...)
+		p.w.Esc('h', 4)
+		p.w.WriteString(string(c))
+		p.w.Esc('l', 4)
 		p.pos++
 	case ansi.ValueNewline:
 		p.w.Println() // print newline first to keep it feeling responsive
-		p.w.Esc('l', 4)
+
 		p.hist = false
 		s := strings.TrimSpace(string(p.input))
 		p.input = p.input[:0]
@@ -88,7 +89,7 @@ func (p *Prompt) NextCommand(r rune) (*CmdLine, error) {
 			break
 		}
 		p.hist = true
-		p.input = append(p.input[:0], []rune(p.lastCommand)...)
+		p.input = append(p.input[:0], []byte(p.lastCommand)...)
 		if p.pos > 0 {
 			p.w.CursorBack(p.pos)
 		}

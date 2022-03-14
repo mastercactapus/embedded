@@ -1,9 +1,5 @@
 package ansi
 
-import (
-	"unicode"
-)
-
 type ParserValueType int
 
 const (
@@ -21,13 +17,13 @@ const (
 	ValueCurRight
 )
 
-// Parser will parse user input rune-by-rune.
+// Parser will parse user input byte-by-byte.
 type Parser struct {
 	state   parserState
 	typ     ParserValueType
 	csiArgs []int
 
-	lastNewline rune
+	lastNewline byte
 }
 
 // Args returns the parsed CSI arguments.
@@ -41,30 +37,30 @@ func (p *Parser) Args() []int {
 	return p.csiArgs
 }
 
-func (p *Parser) Next(r rune) ParserValueType {
+func (p *Parser) Next(c byte) ParserValueType {
 	if p.state == nil {
 		p.state = stateInput
 	}
 	p.typ = ValueNone
-	p.state = p.state(p, r)
+	p.state = p.state(p, c)
 	return p.typ
 }
 
-type parserState func(*Parser, rune) parserState
+type parserState func(*Parser, byte) parserState
 
-func stateInput(p *Parser, r rune) parserState {
-	switch r {
+func stateInput(p *Parser, c byte) parserState {
+	switch c {
 	case 0x03: // ctrl+c
 		p.typ = ValueCtrlC
 	case 0x04: // ctrl+d
 		p.typ = ValueCtrlD
 	case '\r', '\n':
-		if p.lastNewline != r && p.lastNewline != 0 {
-			p.lastNewline = r
+		if p.lastNewline != c && p.lastNewline != 0 {
+			p.lastNewline = c
 			// ignore
 			return stateInput
 		}
-		p.lastNewline = r
+		p.lastNewline = c
 		p.typ = ValueNewline
 		return stateInput
 	case 0x7f, 0x08: // backspace
@@ -73,15 +69,15 @@ func stateInput(p *Parser, r rune) parserState {
 		return stateEsc
 	}
 
-	if unicode.IsPrint(r) {
+	if c >= ' ' && c <= '~' {
 		p.typ = ValueInput
 	}
 
 	return stateInput
 }
 
-func stateEsc(p *Parser, r rune) parserState {
-	switch r {
+func stateEsc(p *Parser, c byte) parserState {
+	switch c {
 	case '[':
 		p.csiArgs = append(p.csiArgs[:0], 0)
 		return stateCSI
@@ -93,13 +89,13 @@ func stateEsc(p *Parser, r rune) parserState {
 	return stateInput
 }
 
-func stateCSI(p *Parser, r rune) parserState {
-	if r >= '0' && r <= '9' {
-		p.csiArgs[len(p.csiArgs)-1] = p.csiArgs[len(p.csiArgs)-1]*10 + int(r-'0')
+func stateCSI(p *Parser, c byte) parserState {
+	if c >= '0' && c <= '9' {
+		p.csiArgs[len(p.csiArgs)-1] = p.csiArgs[len(p.csiArgs)-1]*10 + int(c-'0')
 		return stateCSI
 	}
 
-	switch r {
+	switch c {
 	case ';':
 		p.csiArgs = append(p.csiArgs, 0)
 		return stateCSI
@@ -107,17 +103,17 @@ func stateCSI(p *Parser, r rune) parserState {
 		p.typ = ValueDelCur
 		return stateInput
 	case 'A', 'B', 'C', 'D':
-		return stateCursorCSI(p, r)
+		return stateCursorCSI(p, c)
 	}
 
-	return stateCSIParamIgnore(p, r)
+	return stateCSIParamIgnore(p, c)
 }
 
-func stateCursorCSI(p *Parser, r rune) parserState {
+func stateCursorCSI(p *Parser, c byte) parserState {
 	if p.csiArgs[0] == 0 {
 		p.csiArgs[0] = 1
 	}
-	switch r {
+	switch c {
 	case 'A':
 		p.typ = ValueCurUp
 	case 'B':
@@ -131,16 +127,16 @@ func stateCursorCSI(p *Parser, r rune) parserState {
 	return stateInput
 }
 
-func stateCSIParamIgnore(p *Parser, r rune) parserState {
-	if r >= '0' && r <= '?' {
+func stateCSIParamIgnore(p *Parser, c byte) parserState {
+	if c >= '0' && c <= '?' {
 		return stateCSIParamIgnore
 	}
 
 	return stateCSI
 }
 
-func stateCSIItermediateIgnore(p *Parser, r rune) parserState {
-	if r >= ' ' && r <= '/' {
+func stateCSIItermediateIgnore(p *Parser, c byte) parserState {
+	if c >= ' ' && c <= '/' {
 		return stateCSIItermediateIgnore
 	}
 
@@ -148,16 +144,16 @@ func stateCSIItermediateIgnore(p *Parser, r rune) parserState {
 	return stateInput
 }
 
-func stateEscStrIgnore(p *Parser, r rune) parserState {
-	if r == 0x1b {
+func stateEscStrIgnore(p *Parser, c byte) parserState {
+	if c == 0x1b {
 		return stateEscStrIgnoreEsc
 	}
 
 	return stateEscStrIgnore
 }
 
-func stateEscStrIgnoreEsc(p *Parser, r rune) parserState {
-	if r == '\\' {
+func stateEscStrIgnoreEsc(p *Parser, c byte) parserState {
+	if c == '\\' {
 		return stateInput
 	}
 

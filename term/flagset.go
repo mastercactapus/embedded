@@ -1,11 +1,9 @@
 package term
 
 import (
-	"fmt"
-	"strconv"
 	"strings"
 
-	"github.com/pborman/getopt/v2"
+	"github.com/mastercactapus/embedded/term/ansi"
 )
 
 type (
@@ -28,19 +26,26 @@ type (
 type (
 	Flags struct {
 		cmd *CmdLine
-		set *getopt.Set
 		env func(string) (string, bool)
 
-		args []argInfo
+		flags    map[string]*flagInfo
+		flagList []string
 
-		examples []flagExample
-		showHelp bool
+		helpParams string
+		examples   []flagExample
+		showHelp   *bool
+
+		parsedArgs []string
 	}
 )
 
-type argInfo struct {
-	Arg
-	v interface{}
+type flagInfo struct {
+	Flag
+	Bool  bool
+	Type  string
+	Parse func(string) error
+
+	wasSet bool
 }
 
 type flagExample struct {
@@ -49,208 +54,215 @@ type flagExample struct {
 }
 
 func NewFlagSet(cmd *CmdLine, env func(string) (string, bool)) *Flags {
-	fs := &Flags{cmd: cmd, env: env, set: getopt.New()}
-
-	fs.flag(Flag{Name: "help", Short: 'h', Desc: "Show this help message"}, flagVal{&fs.showHelp}).SetFlag()
+	fs := &Flags{
+		cmd:        cmd,
+		env:        env,
+		flags:      make(map[string]*flagInfo),
+		helpParams: "[parameters ...]",
+	}
+	fs.showHelp = fs.Bool(Flag{Name: "help", Short: 'h', Desc: "Show this help message"})
 	return fs
 }
 
 // SetHelpParameters sets the parameters for the usage output.
-func (fs *Flags) SetHelpParameters(s string) {
-	fs.set.SetParameters(s)
-}
+func (fs *Flags) SetHelpParameters(s string) { fs.helpParams = s }
 
 func (fs *Flags) Example(cmdline, desc string) {
 	fs.examples = append(fs.examples, flagExample{cmdline, desc})
 }
 
 func (fs *Flags) Parse() error {
-	err := fs.set.Getopt(fs.cmd.Args, nil)
-	if err != nil {
-		return usageErr{fs: fs, err: err}
-	}
-	if fs.showHelp {
-		return usageErr{fs: fs}
+	var boolFlags []string
+	for _, f := range fs.flags {
+		if !f.Bool {
+			continue
+		}
+		if f.Name != "" {
+			boolFlags = append(boolFlags, f.Name)
+		}
+		if f.Short != 0 {
+			boolFlags = append(boolFlags, string(f.Short))
+		}
 	}
 
-	// TODO: check for required args
-	for i, arg := range fs.args {
-		switch v := arg.v.(type) {
-		case *[]string:
-			*v = fs.set.Args()
-		case *[]byte:
-			*v = []byte(fs.set.Arg(i))
+	vals, args, err := parseFlags(boolFlags, fs.cmd.Args)
+	if err != nil {
+		return usageErr{err: err}
+	}
+	fs.parsedArgs = args
+
+	for name, val := range vals {
+		f, ok := fs.flags[name]
+		if !ok {
+			return fs.UsageError("unknown flag %s", name)
 		}
+
+		err := f.Parse(val)
+		if err != nil {
+			return fs.UsageError("flag %s: %w", name, err)
+		}
+		f.wasSet = true
+	}
+
+	for _, f := range fs.flags {
+		if f.wasSet {
+			continue
+		}
+
+		env, ok := fs.env(f.Name)
+		if ok {
+			err := f.Parse(env)
+			if err != nil {
+				return fs.UsageError("flag %s: %w", f.Name, err)
+			}
+			continue
+		}
+
+		if f.Def != "" {
+			err := f.Parse(f.Def)
+			if err != nil {
+				return fs.UsageError("flag %s: %w", f.Name, err)
+			}
+			continue
+		}
+
+		if !f.Req {
+			continue
+		}
+
+		return fs.UsageError("flag %s is required", f.Name)
+	}
+
+	if *fs.showHelp {
+		return usageErr{fs: fs}
 	}
 
 	return nil
 }
 
 func (fs *Flags) UsageError(format string, a ...interface{}) error {
-	return usageErr{fs: fs, err: fmt.Errorf(format, a...)}
-}
-
-func (fs *Flags) flag(f Flag, v getopt.Value) getopt.Option {
-	if f.Env != "" {
-		envVal, _ := fs.env(f.Env)
-		if envVal != "" {
-			f.Def = envVal
-		}
-	}
-
-	if f.Def != "" {
-		v.Set(f.Def, nil)
-	}
-	opt := fs.set.FlagLong(v, f.Name, f.Short, f.Desc)
-
-	if f.Req && f.Def == "" {
-		opt.Mandatory()
-	}
-	return opt
+	return usageErr{fs: fs, err: ansi.Errorf(format, a...)}
 }
 
 func (fs *Flags) Args() []string {
-	return fs.set.Args()
+	return fs.parsedArgs
 }
 
 func (fs *Flags) Arg(n int) string {
-	return fs.set.Arg(n)
+	if n < len(fs.parsedArgs) {
+		return fs.parsedArgs[n]
+	}
+
+	return ""
+}
+
+func (fs *Flags) flag(info *flagInfo) {
+	if _, ok := fs.flags[info.Name]; ok {
+		panic("flag --" + info.Name + " already defined")
+	}
+	if _, ok := fs.flags[string(info.Short)]; ok {
+		panic("flag -" + string(info.Short) + " already defined")
+	}
+
+	if info.Name != "" {
+		fs.flags[info.Name] = info
+		fs.flagList = append(fs.flagList, info.Name)
+	}
+	if info.Short != 0 {
+		fs.flags[string(info.Short)] = info
+		if info.Name == "" {
+			fs.flagList = append(fs.flagList, string(info.Short))
+		}
+	}
 }
 
 func (fs *Flags) Enum(f Flag, vals ...string) *string {
-	if f.Env != "" {
-		envVal, _ := fs.env(f.Env)
-		if envVal != "" {
-			f.Def = envVal
-		}
-	}
+	var res string
 
-	str := fs.set.EnumLong(f.Name, f.Short, vals, f.Def, f.Desc)
-	if f.Req && f.Def == "" {
-		if fl := fs.set.Lookup(f.Name); fl != nil {
-			fl.Mandatory()
-		} else {
-			fs.set.Lookup(f.Short).Mandatory()
+	fs.flag(&flagInfo{Flag: f, Type: strings.Join(vals, "|"), Parse: func(value string) error {
+		res = value
+		for _, v := range vals {
+			if v == value {
+				return nil
+			}
 		}
-	}
-	return str
+
+		return fs.UsageError("flag '%s' must be one of %s", f.Name, strings.Join(vals, ", "))
+	}})
+
+	return &res
 }
 
 func (fs *Flags) Bytes(f Flag) *[]byte {
-	var v []byte
-	fs.flag(f, flagVal{&v})
-	return &v
-}
+	var res []byte
 
-func (fs *Flags) String(f Flag) *string {
-	var v string
-	fs.flag(f, flagVal{&v})
-	return &v
-}
-
-func (fs *Flags) Bool(f Flag) *bool {
-	var v bool
-	fs.flag(f, flagVal{&v}).SetFlag()
-	return &v
-}
-
-func (fs *Flags) Int(f Flag) *int {
-	var v int
-	fs.flag(f, flagVal{&v})
-	return &v
-}
-
-func (fs *Flags) Uint16(f Flag) *uint16 {
-	var v uint16
-	fs.flag(f, flagVal{&v})
-	return &v
-}
-
-func (fs *Flags) Byte(f Flag) *byte {
-	var v byte
-	fs.flag(f, flagVal{&v})
-	return &v
-}
-
-type flagVal struct {
-	value interface{}
-}
-
-func (f flagVal) String() string {
-	switch v := f.value.(type) {
-	case *string:
-		return *v
-	case *uint16:
-		return fmt.Sprintf("0x%02x", *v)
-	case *bool:
-		return strconv.FormatBool(*v)
-	case *int:
-		return strconv.Itoa(*v)
-	case *byte:
-		return fmt.Sprintf("0x%02x", *v)
-	case *[]byte:
-		var s []string
-		for _, b := range *v {
-			s = append(s, fmt.Sprintf("0x%02x", b))
-		}
-		return strings.Join(s, ",")
-	default:
-		panic(fmt.Sprintf("unsupported flag type %T", v))
-	}
-}
-
-func (f flagVal) Set(s string, opt getopt.Option) error {
-	switch v := f.value.(type) {
-	case *[]byte:
-		bits := strings.Split(s, ",")
-		bytes := make([]byte, 0, len(bits))
-		for _, s := range bits {
-			if len(s) == 0 {
-				continue
-			}
-			if s[0] == 's' {
-				bytes = append(bytes, []byte(s[1:])...)
-				continue
-			}
-			b, err := strconv.ParseUint(s, 0, 8)
+	fs.flag(&flagInfo{Flag: f, Type: "byte ...", Parse: func(value string) error {
+		parts := strings.Split(value, ",")
+		for _, part := range parts {
+			v, err := parseUint8(part)
 			if err != nil {
 				return err
 			}
-			bytes = append(bytes, byte(b))
+			res = append(res, v)
 		}
-		*v = bytes
-	case *string:
-		*v = s
-	case *bool:
-		if s == "" && opt != nil && opt.IsFlag() {
-			*v = true
-			break
-		}
-		b, err := strconv.ParseBool(s)
-		if err != nil {
-			return err
-		}
-		*v = b
-	case *int:
-		p, err := strconv.ParseInt(s, 0, 0)
-		if err != nil {
-			return err
-		}
-		*v = int(p)
-	case *uint16:
-		p, err := strconv.ParseUint(s, 0, 16)
-		if err != nil {
-			return err
-		}
-		*v = uint16(p)
-	case *byte:
-		p, err := strconv.ParseUint(s, 0, 8)
-		if err != nil {
-			return err
-		}
-		*v = byte(p)
-	default:
-		return fmt.Errorf("unsupported flag type %T", v)
-	}
-	return nil
+
+		return nil
+	}})
+
+	return &res
+}
+
+func (fs *Flags) String(f Flag) *string {
+	var res string
+
+	fs.flag(&flagInfo{Flag: f, Type: "string", Parse: func(value string) error {
+		res = value
+		return nil
+	}})
+
+	return &res
+}
+
+func (fs *Flags) Bool(f Flag) *bool {
+	var res bool
+
+	fs.flag(&flagInfo{Flag: f, Bool: true, Parse: func(value string) (err error) {
+		res, err = parseBool(value)
+		return err
+	}})
+
+	return &res
+}
+
+func (fs *Flags) Int(f Flag) *int {
+	var res int
+
+	fs.flag(&flagInfo{Flag: f, Type: "int", Parse: func(value string) (err error) {
+		res, err = ParseInt(value)
+		return err
+	}})
+
+	return &res
+}
+
+func (fs *Flags) Uint16(f Flag) *uint16 {
+	var res uint16
+
+	fs.flag(&flagInfo{Flag: f, Type: "uint16", Parse: func(value string) (err error) {
+		res, err = parseUint16(value)
+		return err
+	}})
+
+	return &res
+}
+
+func (fs *Flags) Byte(f Flag) *byte {
+	var res byte
+
+	fs.flag(&flagInfo{Flag: f, Type: "byte", Parse: func(value string) (err error) {
+		res, err = parseUint8(value)
+		return err
+	}})
+
+	return &res
 }

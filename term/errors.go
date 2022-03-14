@@ -1,7 +1,5 @@
 package term
 
-import "io"
-
 type (
 	exitErr  struct{ error }
 	usageErr struct {
@@ -16,8 +14,4 @@ func (e usageErr) Error() string {
 	}
 
 	return "usage requested"
-}
-
-func (e usageErr) PrintUsage(w io.Writer) {
-	e.fs.set.PrintUsage(w)
 }
