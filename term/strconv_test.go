@@ -13,6 +13,6 @@ func TestItoa(t *testing.T) {
 	assert.Equal(t, "123", itoa(123))
 	assert.Equal(t, "-123", itoa(-123))
 
-	assert.Equal(t, "-1234567890", itoa(-1234567890))
-	assert.Equal(t, "1234567890", itoa(1234567890))
+	assert.Equal(t, "-123456", itoa(-123456))
+	assert.Equal(t, "123456", itoa(123456))
 }
