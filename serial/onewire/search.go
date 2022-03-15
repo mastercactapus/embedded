@@ -2,7 +2,8 @@ package onewire
 
 import (
 	"encoding/binary"
-	"fmt"
+
+	"github.com/mastercactapus/embedded/term/ascii"
 )
 
 type searchState struct {
@@ -39,7 +40,7 @@ func (ow *OneWire) search(s *searchState, rom uint64, startN, n int) {
 		binary.LittleEndian.PutUint64(tmp[:], rom)
 		addr := Address(binary.BigEndian.Uint64(tmp[:]))
 		if !addr.Valid() {
-			s.err = fmt.Errorf("search [n=%d]: %x: %w", n, rom, ErrBadChecksum)
+			s.err = ascii.Errorf("search [n=%d]: %x: %w", n, rom, ErrBadChecksum)
 			return
 		}
 
@@ -50,7 +51,7 @@ func (ow *OneWire) search(s *searchState, rom uint64, startN, n int) {
 	id, idC := ow.ReadBit(), ow.ReadBit()
 	switch {
 	case id && idC:
-		s.err = fmt.Errorf("search [n=%d]: %w", n, ErrNoDevice)
+		s.err = ascii.Errorf("search [n=%d]: %w", n, ErrNoDevice)
 		return
 	case !id && !idC:
 		if n < startN {

@@ -3,7 +3,7 @@ package term
 import (
 	"strings"
 
-	"github.com/mastercactapus/embedded/term/ansi"
+	"github.com/mastercactapus/embedded/term/ascii"
 )
 
 type flagParse struct {
@@ -56,9 +56,9 @@ func eqIndex(s string) int {
 func (p *flagParse) setFlag() {
 	if _, ok := p.flags[p.cur.name]; ok {
 		if len(p.cur.name) == 1 {
-			p.err = ansi.Errorf("flag -%s already set", p.cur.name)
+			p.err = ascii.Errorf("flag -%s already set", p.cur.name)
 		} else {
-			p.err = ansi.Errorf("flag --%s already set", p.cur.name)
+			p.err = ascii.Errorf("flag --%s already set", p.cur.name)
 		}
 		return
 	}

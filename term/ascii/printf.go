@@ -27,23 +27,14 @@ func Sprintf(format string, a ...interface{}) string {
 
 func Fprint(w io.Writer, a ...interface{}) (err error) {
 	f := &fPrinter{w: w}
-	f.state = f.parseFormat
-
-	for _, a := range a {
-		f.printVariable(fmtParam{code: 'v'}, a)
-	}
+	f.print(a)
 
 	return f.err
 }
 
 func Fprintln(w io.Writer, a ...interface{}) (err error) {
 	f := &fPrinter{w: w}
-	f.state = f.parseFormat
-
-	for _, a := range a {
-		f.printVariable(fmtParam{code: 'v'}, a)
-	}
-
+	f.print(a)
 	f.writeString("\r\n")
 
 	return f.err
@@ -51,6 +42,34 @@ func Fprintln(w io.Writer, a ...interface{}) (err error) {
 
 func Fprintf(w io.Writer, format string, a ...interface{}) (err error) {
 	f := &fPrinter{w: w, format: format, args: a}
+	f.printf(format, a)
+	return f.err
+}
+
+type fPrinter struct {
+	w io.Writer
+
+	format string
+	args   []interface{}
+	state  printState
+
+	isErrorf   bool
+	wrappedErr error
+
+	err error
+
+	param fmtParam
+}
+
+func (f *fPrinter) print(a []interface{}) {
+	f.state = f.parseFormat
+
+	for _, a := range a {
+		f.printVariable(fmtParam{code: 'v'}, a)
+	}
+}
+
+func (f *fPrinter) printf(format string, a []interface{}) {
 	f.state = f.parseFormat
 
 	for _, b := range []byte(format) {
@@ -64,20 +83,6 @@ func Fprintf(w io.Writer, format string, a ...interface{}) (err error) {
 		f.printVariable(fmtParam{code: 'v'}, a)
 		f.writeString(")")
 	}
-
-	return f.err
-}
-
-type fPrinter struct {
-	w io.Writer
-
-	format string
-	args   []interface{}
-	state  printState
-
-	err error
-
-	param fmtParam
 }
 
 type printState func(byte) printState
@@ -300,6 +305,14 @@ func (f *fPrinter) printChar(p fmtParam, v interface{}) {
 }
 
 func (f *fPrinter) printVariable(p fmtParam, v interface{}) printState {
+	if f.isErrorf && f.wrappedErr == nil && p.code == 'w' {
+		err, ok := v.(error)
+		if ok {
+			f.wrappedErr = err
+			f.writeString(err.Error())
+			return f.parseFormat
+		}
+	}
 	if p.code != 'v' {
 		f.writeString("%!")
 		f.writeByte(p.code)

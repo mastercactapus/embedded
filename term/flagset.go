@@ -3,7 +3,7 @@ package term
 import (
 	"strings"
 
-	"github.com/mastercactapus/embedded/term/ansi"
+	"github.com/mastercactapus/embedded/term/ascii"
 )
 
 type (
@@ -141,7 +141,7 @@ func (fs *Flags) Parse() error {
 }
 
 func (fs *Flags) UsageError(format string, a ...interface{}) error {
-	return usageErr{fs: fs, err: ansi.Errorf(format, a...)}
+	return usageErr{fs: fs, err: ascii.Errorf(format, a...)}
 }
 
 func (fs *Flags) Args() []string {

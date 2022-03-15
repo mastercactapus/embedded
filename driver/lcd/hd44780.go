@@ -2,12 +2,12 @@ package lcd
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/mastercactapus/embedded/driver"
 	"github.com/mastercactapus/embedded/driver/ioexp"
 	"github.com/mastercactapus/embedded/serial/i2c"
+	"github.com/mastercactapus/embedded/term/ascii"
 )
 
 type HD44780 struct {
@@ -194,7 +194,7 @@ func (lcd *HD44780) _SetCGRAMAddr(addr byte) error {
 
 func (lcd *HD44780) _SetDDRAMAddr(addr int) error {
 	if addr >= 0x40+lcd.cfg.Cols*2 {
-		return fmt.Errorf("invalid DDRAM address: %x", addr)
+		return ascii.Errorf("invalid DDRAM address: %x", addr)
 	}
 
 	return lcd.writeIR(0b_1000_0000|byte(addr), 37*time.Microsecond)

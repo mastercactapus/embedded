@@ -1,7 +1,7 @@
 package mem
 
 import (
-	"fmt"
+	"errors"
 	"io"
 )
 
@@ -134,10 +134,10 @@ func (m *MultiPager) Seek(offset int64, whence int) (int64, error) {
 		return m.Seek(int64(m.pos)+offset, io.SeekStart)
 	case io.SeekStart:
 	default:
-		return 0, fmt.Errorf("invalid whence")
+		return 0, errors.New("invalid whence")
 	}
 	if offset < 0 {
-		return 0, fmt.Errorf("out of bounds")
+		return 0, errors.New("out of bounds")
 	}
 
 	if offset >= int64(m.maxLen) {

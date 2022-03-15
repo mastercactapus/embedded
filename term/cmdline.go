@@ -3,7 +3,7 @@ package term
 import (
 	"bytes"
 
-	"github.com/mastercactapus/embedded/term/ansi"
+	"github.com/mastercactapus/embedded/term/ascii"
 )
 
 // CmdLine represents a command line invocation.
@@ -79,7 +79,7 @@ func cmdParam(p *cmdParse, c byte) cmdParseFunc {
 	}
 
 	if c < ' ' || c > '~' {
-		p.err = ansi.Errorf("invalid character '%c'", c)
+		p.err = ascii.Errorf("invalid character '%c'", c)
 		return nil
 	}
 	p.buf.WriteByte(c)
@@ -121,7 +121,7 @@ func cmdStringEsc(p *cmdParse, c byte) cmdParseFunc {
 		p.hexN = 2
 		return cmdStringHex
 	default:
-		p.err = ansi.Errorf("invalid escape sequence '\\%c'", c)
+		p.err = ascii.Errorf("invalid escape sequence '\\%c'", c)
 		return nil
 	}
 
@@ -137,7 +137,7 @@ func cmdStringHex(p *cmdParse, c byte) cmdParseFunc {
 	case 'A' <= c && c <= 'F':
 		p.hex = p.hex*16 + (c - 'A') + 10
 	default:
-		p.err = ansi.Errorf("invalid hexadecimal character '%c'", c)
+		p.err = ascii.Errorf("invalid hexadecimal character '%c'", c)
 		return nil
 	}
 

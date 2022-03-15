@@ -1,8 +1,6 @@
 package term
 
-import (
-	"github.com/mastercactapus/embedded/term/ansi"
-)
+import "github.com/mastercactapus/embedded/term/ascii"
 
 func fmtBool(v bool) string {
 	if v {
@@ -38,7 +36,7 @@ func parseBool(s string) (bool, error) {
 	case "0", "f", "F", "false", "FALSE", "False":
 		return false, nil
 	default:
-		return false, ansi.Errorf("term: invalid bool: %q", s)
+		return false, ascii.Errorf("term: invalid bool: %q", s)
 	}
 }
 
@@ -61,7 +59,7 @@ func ParseInt(s string) (val int, err error) {
 			}
 			return val, nil
 		}
-		return 0, ansi.Errorf("term: invalid int: %s", s)
+		return 0, ascii.Errorf("term: invalid int: %s", s)
 	}
 	switch {
 	case buf[0] == '0' && buf[1] == 'x':
@@ -74,7 +72,7 @@ func ParseInt(s string) (val int, err error) {
 			case c >= 'A' && c <= 'F':
 				val = val<<4 + int(c-'A'+10)
 			default:
-				return 0, ansi.Errorf("term: invalid int: %s", s)
+				return 0, ascii.Errorf("term: invalid int: %s", s)
 			}
 		}
 	case buf[0] == '0' && buf[1] == 'b':
@@ -85,7 +83,7 @@ func ParseInt(s string) (val int, err error) {
 			case '1':
 				val = val<<1 + 1
 			default:
-				return 0, ansi.Errorf("term: invalid int: %s", s)
+				return 0, ascii.Errorf("term: invalid int: %s", s)
 			}
 		}
 	case buf[0] == '0' && buf[1] == 'o':
@@ -94,13 +92,13 @@ func ParseInt(s string) (val int, err error) {
 			case c >= '0' && c <= '7':
 				val = val<<3 + int(c-'0')
 			default:
-				return 0, ansi.Errorf("term: invalid int: %s", s)
+				return 0, ascii.Errorf("term: invalid int: %s", s)
 			}
 		}
 	default:
 		for _, c := range buf {
 			if c < '0' || c > '9' {
-				return 0, ansi.Errorf("term: invalid int: %s", s)
+				return 0, ascii.Errorf("term: invalid int: %s", s)
 			}
 			val = val*10 + int(c-'0')
 		}
@@ -121,11 +119,11 @@ func parseUint16(s string) (val uint16, err error) {
 		if s[0] >= '0' && s[0] <= '9' {
 			return uint16(s[0] - '0'), nil
 		}
-		return 0, ansi.Errorf("term: invalid uint16: %s", s)
+		return 0, ascii.Errorf("term: invalid uint16: %s", s)
 	}
 	if s[0] == '0' && s[1] == 'x' {
 		if len(s) > 8 {
-			return 0, ansi.Errorf("term: invalid uint16: %s", s)
+			return 0, ascii.Errorf("term: invalid uint16: %s", s)
 		}
 		for _, c := range s[2:] {
 			switch {
@@ -136,14 +134,14 @@ func parseUint16(s string) (val uint16, err error) {
 			case c >= 'A' && c <= 'F':
 				val = val<<4 + uint16(c-'A'+10)
 			default:
-				return 0, ansi.Errorf("term: invalid uint16: %s", s)
+				return 0, ascii.Errorf("term: invalid uint16: %s", s)
 			}
 		}
 		return val, nil
 	}
 	if s[0] == '0' && s[1] == 'b' {
 		if len(s) > 16 {
-			return 0, ansi.Errorf("term: invalid uint16: %s", s)
+			return 0, ascii.Errorf("term: invalid uint16: %s", s)
 		}
 		for _, c := range s[2:] {
 			switch c {
@@ -152,17 +150,17 @@ func parseUint16(s string) (val uint16, err error) {
 			case '1':
 				val = val<<1 + 1
 			default:
-				return 0, ansi.Errorf("term: invalid uint16: %s", s)
+				return 0, ascii.Errorf("term: invalid uint16: %s", s)
 			}
 		}
 		return val, nil
 	}
 	if s[0] == '-' {
-		return 0, ansi.Errorf("term: invalid uint16: %s", s)
+		return 0, ascii.Errorf("term: invalid uint16: %s", s)
 	}
 	for _, c := range s {
 		if c < '0' || c > '9' {
-			return 0, ansi.Errorf("term: invalid uint16: %s", s)
+			return 0, ascii.Errorf("term: invalid uint16: %s", s)
 		}
 		val = val*10 + uint16(c-'0')
 	}
@@ -180,11 +178,11 @@ func parseUint8(s string) (val uint8, err error) {
 		if s[0] >= '0' && s[0] <= '9' {
 			return uint8(s[0] - '0'), nil
 		}
-		return 0, ansi.Errorf("term: invalid uint8: %s", s)
+		return 0, ascii.Errorf("term: invalid uint8: %s", s)
 	}
 	if s[0] == '0' && s[1] == 'x' {
 		if len(s) > 4 {
-			return 0, ansi.Errorf("term: invalid uint8: %s", s)
+			return 0, ascii.Errorf("term: invalid uint8: %s", s)
 		}
 		for _, c := range s[2:] {
 			switch {
@@ -195,14 +193,14 @@ func parseUint8(s string) (val uint8, err error) {
 			case c >= 'A' && c <= 'F':
 				val = val<<4 + uint8(c-'A'+10)
 			default:
-				return 0, ansi.Errorf("term: invalid uint8: %s", s)
+				return 0, ascii.Errorf("term: invalid uint8: %s", s)
 			}
 		}
 		return val, nil
 	}
 	if s[0] == '0' && s[1] == 'b' {
 		if len(s) > 8 {
-			return 0, ansi.Errorf("term: invalid uint8: %s", s)
+			return 0, ascii.Errorf("term: invalid uint8: %s", s)
 		}
 		for _, c := range s[2:] {
 			switch c {
@@ -211,17 +209,17 @@ func parseUint8(s string) (val uint8, err error) {
 			case '1':
 				val = val<<1 + 1
 			default:
-				return 0, ansi.Errorf("term: invalid uint8: %s", s)
+				return 0, ascii.Errorf("term: invalid uint8: %s", s)
 			}
 		}
 		return val, nil
 	}
 	if s[0] == '-' {
-		return 0, ansi.Errorf("term: invalid uint8: %s", s)
+		return 0, ascii.Errorf("term: invalid uint8: %s", s)
 	}
 	for _, c := range s {
 		if c < '0' || c > '9' {
-			return 0, ansi.Errorf("term: invalid uint8: %s", s)
+			return 0, ascii.Errorf("term: invalid uint8: %s", s)
 		}
 		val = val*10 + uint8(c-'0')
 	}

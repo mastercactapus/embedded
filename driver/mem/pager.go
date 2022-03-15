@@ -1,7 +1,7 @@
 package mem
 
 import (
-	"fmt"
+	"errors"
 	"io"
 	"time"
 
@@ -188,10 +188,10 @@ func (d *Pager) Seek(offset int64, whence int) (int64, error) {
 		return d.Seek(int64(d.pos)+offset, io.SeekStart)
 	case io.SeekStart:
 	default:
-		return 0, fmt.Errorf("invalid whence")
+		return 0, errors.New("invalid whence")
 	}
 	if offset < 0 {
-		return 0, fmt.Errorf("out of bounds")
+		return 0, errors.New("out of bounds")
 	}
 
 	d.pos = int(offset)
