@@ -9,17 +9,12 @@ import (
 type Simple8 struct {
 	rw io.ReadWriter
 
-	state    uint8
+	State    uint8
 	readData uint8
 }
 
 func NewSimple8(rw io.ReadWriter) *Simple8 {
 	return &Simple8{rw: rw}
-}
-
-func (s *Simple8) Configure(state uint8) error {
-	s.state = state
-	return s.Flush()
 }
 
 func (Simple8) PinCount() int { return 8 }
@@ -56,9 +51,9 @@ func (p *Simple8) getPin(n int) (v bool, err error) {
 
 func (s *Simple8) setPinB(n int, v bool) error {
 	if v {
-		s.state |= 1 << uint8(n)
+		s.State |= 1 << uint8(n)
 	} else {
-		s.state &= ^(1 << uint8(n))
+		s.State &= ^(1 << uint8(n))
 	}
 	return nil
 }
@@ -75,10 +70,10 @@ func (s *Simple8) Refresh() (err error) {
 
 func (s *Simple8) Flush() error {
 	if bw, ok := s.rw.(io.ByteWriter); ok {
-		return bw.WriteByte(s.state)
+		return bw.WriteByte(s.State)
 	}
 
-	_, err := s.rw.Write([]byte{s.state})
+	_, err := s.rw.Write([]byte{s.State})
 	return err
 }
 
