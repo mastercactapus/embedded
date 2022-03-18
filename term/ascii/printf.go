@@ -321,6 +321,12 @@ func (f *fPrinter) printVariable(p fmtParam, v interface{}) printState {
 		f.writeString("=")
 	}
 	switch v := v.(type) {
+	case bool:
+		if v {
+			f.writeString("true")
+		} else {
+			f.writeString("false")
+		}
 	case string:
 		f.printStr(p, v)
 	case []string:
