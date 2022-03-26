@@ -85,7 +85,7 @@ func (fs *Flags) Parse() error {
 		}
 	}
 
-	vals, args, err := parseFlags(boolFlags, fs.cmd.Args)
+	vals, args, err := parseFlags(boolFlags, fs.cmd.Args[1:])
 	if err != nil {
 		return usageErr{err: err}
 	}

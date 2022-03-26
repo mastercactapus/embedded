@@ -88,6 +88,8 @@ func flagParseNext(p *flagParse, arg string) flagParseFunc {
 		return flagParseShort(p, arg[1:])
 	}
 
+	p.args = append(p.args, arg)
+
 	return flagParseNext
 }
 

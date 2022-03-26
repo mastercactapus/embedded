@@ -77,18 +77,17 @@ var MemCommands = []term.Command{
 			return err
 		}
 
-		var data []byte
+		wc := hex.Dumper(r)
 		if *count == 0 {
-			data, err = io.ReadAll(mem)
+			io.Copy(wc, mem)
 		} else {
-			data = make([]byte, *count)
-			_, err = io.ReadFull(mem, data)
+			io.CopyN(wc, mem, int64(*count))
 		}
 
-		r.Print(hex.Dump(data))
-		return nil
+		return wc.Close()
 	}},
 	{Name: "w", Desc: "Write device data.", Exec: func(r term.RunArgs) error {
+		r.SetHelpParameters("[data]")
 		start := r.Int(term.Flag{Short: 's', Def: "0", Desc: "Position to start from.", Req: true})
 		binData := r.Bytes(term.Flag{Name: "data", Short: 'b', Desc: "Write bytes (comma separated) before arg data."})
 		if err := r.Parse(); err != nil {

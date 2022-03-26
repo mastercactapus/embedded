@@ -85,7 +85,10 @@ func (s *softCtrl) Start() {
 }
 
 func (s *softCtrl) Stop() {
+	s.setLow(s.sda)
+	s.wait()
 	s.clockUp()
+	s.wait()
 	s.waitHigh(s.sda)
 }
 
