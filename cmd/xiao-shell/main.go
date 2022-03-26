@@ -40,6 +40,7 @@ func main() {
 	i2cSh := bustool.AddI2C(sh, i2c.New(i2c.NewSoftController(x.Pin(1), x.Pin(0))))
 	bustool.AddIO(i2cSh)
 	bustool.AddMem(i2cSh)
+	bustool.AddRTC(i2cSh)
 
 	x.Pin(2).Output()
 	x.Pin(3).Output()
