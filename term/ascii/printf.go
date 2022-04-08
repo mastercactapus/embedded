@@ -342,6 +342,8 @@ func (f *fPrinter) printVariable(p fmtParam, v interface{}) printState {
 			f.printInt(fmtParam{}, b)
 		}
 		f.writeByte(']')
+	case error:
+		f.writeString(v.Error())
 	default:
 		f.printStr(p, "?")
 	}

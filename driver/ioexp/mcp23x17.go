@@ -10,13 +10,11 @@ import (
 type MCP23X17 struct {
 	rw io.ReadWriter
 
-	// Invert pins will invert the polarity of the input pins.
-	InvertPins  uint16
-	PullupPins  uint16
-	InputPins   uint16
-	OutputState uint16
-
-	lastRead uint16
+	InvertPins  *Register16
+	PullupPins  *Register16
+	InputPins   *Register16
+	OutputState *Register16
+	InputState  *Register16
 }
 
 const (
@@ -40,99 +38,50 @@ func NewMCP23017(bus i2c.Bus, addr uint16) *MCP23X17 {
 
 // NewMCP23X17 is a convenience method that returns a PinReadWriter for a MCP23x17-compatible serial device.
 func NewMCP23X17(rw io.ReadWriter) *MCP23X17 {
-	return &MCP23X17{rw: rw}
+	return &MCP23X17{
+		rw:          rw,
+		InvertPins:  NewRegister16(rw, mcp16RegIPOLA),
+		PullupPins:  NewRegister16(rw, mcp16RegGPPUA),
+		InputPins:   NewRegister16(rw, mcp16RegIODIRA),
+		OutputState: NewRegister16(rw, mcp16RegOLATA),
+		InputState:  NewRegister16(rw, mcp16RegGPIOA),
+	}
 }
 
 func (MCP23X17) PinCount() int { return 16 }
 
 func (m *MCP23X17) Flush() error {
-	if err := m.write(mcp16RegGPPUA, m.PullupPins); err != nil {
+	if err := m.PullupPins.Flush(); err != nil {
 		return err
 	}
-	if err := m.write(mcp16RegIODIRA, m.InputPins); err != nil {
+	if err := m.InputPins.Flush(); err != nil {
 		return err
 	}
-	if err := m.write(mcp16RegIPOLA, m.InvertPins); err != nil {
+	if err := m.InvertPins.Flush(); err != nil {
 		return err
 	}
-	if err := m.write(mcp16RegOLATA, m.OutputState); err != nil {
+	if err := m.OutputState.Flush(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m *MCP23X17) write(reg uint8, v uint16) error {
-	_, err := m.rw.Write([]byte{reg, byte(v & 0xff), byte(v >> 8)})
-	return err
-}
-
 func (m *MCP23X17) Pin(n int) driver.Pin {
 	return &driver.PinFN{
 		N:            n,
-		GetFunc:      m.getPin,
-		SetInputFunc: m.setIODIR,
-		SetFunc:      m.setOLAT,
+		GetFunc:      m.InputState.Get,
+		SetInputFunc: m.InputPins.Set,
+		SetFunc:      m.OutputState.Set,
 	}
 }
 
 func (m *MCP23X17) BufferedPin(n int) driver.Pin {
 	return &driver.PinFN{
 		N:            n,
-		GetFunc:      m.getPinBuf,
-		SetInputFunc: m.setIODIRBuf,
-		SetFunc:      m.setOLATBuf,
+		GetFunc:      m.InputState.GetBuf,
+		SetInputFunc: m.InputPins.SetBuf,
+		SetFunc:      m.OutputState.SetBuf,
 	}
 }
 
-func (m *MCP23X17) setIODIRBuf(n int, v bool) error {
-	if v {
-		m.InputPins |= 1 << uint16(n)
-	} else {
-		m.InputPins &= ^(1 << uint16(n))
-	}
-	return nil
-}
-
-func (m *MCP23X17) setIODIR(n int, v bool) error {
-	if err := m.setIODIRBuf(n, v); err != nil {
-		return err
-	}
-	return m.write(mcp16RegIODIRA, m.InputPins)
-}
-
-func (m *MCP23X17) setOLATBuf(n int, v bool) error {
-	if v {
-		m.OutputState |= 1 << uint16(n)
-	} else {
-		m.OutputState &= ^(1 << uint16(n))
-	}
-	return nil
-}
-
-func (m *MCP23X17) setOLAT(n int, v bool) error {
-	if err := m.setOLATBuf(n, v); err != nil {
-		return err
-	}
-	return m.write(mcp16RegOLATA, m.OutputState)
-}
-
-func (m *MCP23X17) getPinBuf(n int) (bool, error) {
-	return m.lastRead&(1<<uint(n)) != 0, nil
-}
-
-func (m *MCP23X17) getPin(n int) (bool, error) {
-	if err := m.Refresh(); err != nil {
-		return false, err
-	}
-	return m.getPinBuf(n)
-}
-
-func (m *MCP23X17) Refresh() error {
-	var buf [2]byte
-	_, err := m.rw.Read(buf[:])
-	if err != nil {
-		return err
-	}
-	m.lastRead = uint16(buf[0]) | uint16(buf[1])<<8
-	return nil
-}
+func (m *MCP23X17) Refresh() error { return m.InputState.Refresh() }
