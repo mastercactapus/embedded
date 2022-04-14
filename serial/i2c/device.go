@@ -37,7 +37,7 @@ func (d *Device) Tx(w, r []byte) (err error) {
 }
 
 func (d *Device) Write(w []byte) (int, error) {
-	if wt := d.bus.(WriterTo); wt != nil {
+	if wt, ok := d.bus.(WriterTo); ok {
 		return wt.WriteTo(w, d.addr)
 	}
 
@@ -50,7 +50,7 @@ func (d *Device) Write(w []byte) (int, error) {
 }
 
 func (d *Device) Read(r []byte) (int, error) {
-	if rf := d.bus.(ReaderFrom); rf != nil {
+	if rf, ok := d.bus.(ReaderFrom); ok {
 		return rf.ReadFrom(r, d.addr)
 	}
 
@@ -62,7 +62,7 @@ func (d *Device) Read(r []byte) (int, error) {
 }
 
 func (d *Device) WriteByte(b byte) error {
-	if w := d.bus.(ByteWriterTo); w != nil {
+	if w, ok := d.bus.(ByteWriterTo); ok {
 		return w.WriteByteTo(b, d.addr)
 	}
 
@@ -71,7 +71,7 @@ func (d *Device) WriteByte(b byte) error {
 }
 
 func (d *Device) ReadByte() (byte, error) {
-	if r := d.bus.(ByteReaderFrom); r != nil {
+	if r, ok := d.bus.(ByteReaderFrom); ok {
 		return r.ReadByteFrom(d.addr)
 	}
 

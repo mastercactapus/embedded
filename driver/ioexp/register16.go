@@ -11,22 +11,32 @@ type Register16 struct {
 	addr uint8
 
 	State uint16
+
+	invert uint16
 }
 
 func NewRegister16(rw io.ReadWriter, addr uint8) *Register16 {
 	return &Register16{addr: addr, rw: rw}
 }
 
+func (r *Register16) SetInvert(n int, v bool) {
+	if v {
+		r.invert |= 1 << n
+	} else {
+		r.invert &^= 1 << n
+	}
+}
+
 func (r *Register16) Flush() error {
-	_, err := r.rw.Write([]byte{r.addr, byte(r.State), byte(r.State >> 8)})
+	_, err := r.rw.Write([]byte{r.addr, byte(r.State ^ r.invert), byte((r.State ^ r.invert) >> 8)})
 	return err
 }
 
 func (r *Register16) SetBuf(n int, v bool) error {
 	if v {
-		r.State |= 1 << uint16(n)
+		r.State |= 1 << n
 	} else {
-		r.State &= ^(1 << uint16(n))
+		r.State &^= 1 << n
 	}
 	return nil
 }
@@ -39,7 +49,7 @@ func (r *Register16) Set(n int, v bool) error {
 }
 
 func (r *Register16) GetBuf(n int) (bool, error) {
-	return r.State&(1<<uint(n)) != 0, nil
+	return r.State&(1<<n) != 0, nil
 }
 
 func (r *Register16) Get(n int) (bool, error) {
@@ -55,6 +65,6 @@ func (r *Register16) Refresh() error {
 	if err != nil {
 		return err
 	}
-	r.State = uint16(buf[0]) | uint16(buf[1])<<8
+	r.State = (uint16(buf[0]) | uint16(buf[1])<<8) ^ r.invert
 	return nil
 }

@@ -5,10 +5,10 @@ import (
 )
 
 type Controller interface {
-	Start()
-	Stop()
-	WriteBit(bool)
-	ReadBit() bool
+	Start() error
+	Stop() error
+	WriteBit(bool) error
+	ReadBit() (bool, error)
 }
 
 type BaudRateController interface {
@@ -47,8 +47,6 @@ const (
 	modeRead  = 1
 	modeWrite = 0
 )
-
-const _10BitAddr = 0b11110_0000000000
 
 func (i2c *I2C) writeLongAddress(addr uint16, mode byte) error {
 	// first byte as write
@@ -167,26 +165,35 @@ func (i2c *I2C) ReadByte() (byte, error) {
 	return i2c._ReadByte(true)
 }
 
-func (i2c *I2C) _ReadByte(nak bool) (byte, error) {
+func (i2c *I2C) _ReadByte(nak bool) (v byte, err error) {
 	var b byte
+	var bit bool
 	for i := 0; i < 8; i++ {
-		if i2c.ReadBit() {
+		bit, err = i2c.ReadBit()
+		if err != nil {
+			return 0, err
+		}
+		if bit {
 			b |= 1 << (7 - i)
 		}
 	}
 
-	i2c.WriteBit(nak)
-
-	return b, nil
+	return b, i2c.WriteBit(nak)
 }
 
 // WriteByte writes a single byte to the bus, without any address or start/stop condition.
-func (i2c *I2C) WriteByte(b byte) error {
+func (i2c *I2C) WriteByte(b byte) (err error) {
 	for i := 0; i < 8; i++ {
-		i2c.WriteBit(((b >> (7 - i)) & 1) == 1)
+		if err = i2c.WriteBit(((b >> (7 - i)) & 1) == 1); err != nil {
+			return err
+		}
 	}
 
-	if i2c.ReadBit() {
+	nak, err := i2c.ReadBit()
+	if err != nil {
+		return err
+	}
+	if nak {
 		return ErrNack
 	}
 

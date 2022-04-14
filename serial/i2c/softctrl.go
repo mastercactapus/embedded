@@ -20,6 +20,12 @@ func NewSoftController(sda, scl driver.Pin) Controller {
 	return &softCtrl{scl: scl, sda: sda}
 }
 
+func (s *softCtrl) readErr() (err error) {
+	err = s.err
+	s.err = nil
+	return err
+}
+
 func (s *softCtrl) setHigh(p driver.Pin) {
 	if s.err != nil {
 		return
@@ -75,24 +81,26 @@ func (s *softCtrl) waitHigh(p driver.Pin) {
 
 func (s *softCtrl) clockUp() { s.waitHigh(s.scl) }
 
-func (s *softCtrl) Start() {
+func (s *softCtrl) Start() error {
 	s.clockUp()
 	s.wait()
 	s.setLow(s.sda)
 	s.wait()
 	s.setLow(s.scl)
 	s.wait()
+	return s.readErr()
 }
 
-func (s *softCtrl) Stop() {
+func (s *softCtrl) Stop() error {
 	s.setLow(s.sda)
 	s.wait()
 	s.clockUp()
 	s.wait()
 	s.waitHigh(s.sda)
+	return s.readErr()
 }
 
-func (s *softCtrl) WriteBit(bit bool) {
+func (s *softCtrl) WriteBit(bit bool) error {
 	if bit {
 		s.setHigh(s.sda)
 	} else {
@@ -103,9 +111,10 @@ func (s *softCtrl) WriteBit(bit bool) {
 	s.wait()
 	s.setLow(s.scl)
 	s.wait()
+	return s.readErr()
 }
 
-func (s *softCtrl) ReadBit() (value bool) {
+func (s *softCtrl) ReadBit() (value bool, err error) {
 	s.setHigh(s.sda)
 	s.wait()
 	s.clockUp()
@@ -122,5 +131,5 @@ func (s *softCtrl) ReadBit() (value bool) {
 	if !value {
 		s.setHigh(s.sda)
 	}
-	return value
+	return value, s.readErr()
 }
