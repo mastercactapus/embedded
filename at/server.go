@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"io"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/mastercactapus/embedded/term/ascii"
 )
@@ -17,6 +19,10 @@ import (
 type Server struct {
 	rw io.ReadWriter
 	s  *bufio.Scanner
+
+	idleDur time.Duration
+	t       *time.Timer
+	mx      sync.Mutex
 
 	h map[string]HandlerFunc
 }
@@ -45,6 +51,25 @@ func (s *Server) HandleFunc(name string, h HandlerFunc) {
 	s.h[name] = h
 }
 
+// OnIdle sets a handler to be called when the server
+// has been idle for the specified duration.
+//
+// OnIdle will panic if called more than once.
+//
+// It is guaranteed that the handler will not be called
+// while a command is being handled.
+func (s *Server) OnIdle(dur time.Duration, h func()) {
+	if s.t != nil {
+		panic("at: idle handler already set")
+	}
+	s.idleDur = dur
+	s.t = time.AfterFunc(dur, func() {
+		s.mx.Lock()
+		h()
+		s.mx.Unlock()
+	})
+}
+
 // Serve serves AT commands.
 func (s *Server) Serve() error {
 	var c Cmd
@@ -62,6 +87,10 @@ func (s *Server) Serve() error {
 			}
 		}
 
+		if s.t != nil {
+			s.t.Reset(s.idleDur)
+		}
+
 		var resp Response
 		if c.FullName == "" || c.Name() == "" {
 			resp.OK = true
@@ -72,7 +101,9 @@ func (s *Server) Serve() error {
 			}
 			continue
 		} else if h, ok := s.h[c.FullName]; ok {
+			s.mx.Lock()
 			resp = h(c)
+			s.mx.Unlock()
 		} else {
 			resp.SetValue("ERROR", "unknown command")
 		}
