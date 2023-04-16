@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io"
 	"strings"
+	"sync"
 
 	"github.com/mastercactapus/embedded/term/ascii"
 )
@@ -12,6 +13,7 @@ import (
 type Client struct {
 	rw io.ReadWriter
 	s  *bufio.Scanner
+	mx sync.Mutex
 }
 
 // NewClient creates a new AT command client.
@@ -81,6 +83,8 @@ func (c *Client) Execute(name string) (*Response, error) {
 var ErrHello = ascii.Errorf("at: HELLO received")
 
 func (c *Client) _Command(name, line string) (*Response, error) {
+	c.mx.Lock()
+	defer c.mx.Unlock()
 	if strings.ContainsRune(line, '\n') {
 		return nil, ascii.Errorf("at: invalid command: %q", line)
 	}
