@@ -20,20 +20,8 @@ type Client struct {
 func NewClient(rw io.ReadWriter) (*Client, error) {
 	s := bufio.NewScanner(rw)
 	s.Split(bufio.ScanLines)
-	c := &Client{rw: rw, s: s}
 
-	// Wait for the modem to send "HELLO".
-	_, err := io.WriteString(c.rw, "\r\nSTART\r\n")
-	if err != nil {
-		return nil, err
-	}
-	for s.Scan() {
-		if s.Text() == "HELLO" {
-			return c, nil
-		}
-	}
-
-	return nil, s.Err()
+	return &Client{rw: rw, s: s}, nil
 }
 
 // Set sets the value of a parameter.
@@ -79,8 +67,6 @@ func (c *Client) Execute(name string) (*Response, error) {
 
 	return c._Command(name, ascii.Sprintf("AT+%s", name))
 }
-
-var ErrHello = ascii.Errorf("at: HELLO received")
 
 func (c *Client) _Command(name, line string) (*Response, error) {
 	c.mx.Lock()

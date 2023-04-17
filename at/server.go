@@ -94,12 +94,6 @@ func (s *Server) Serve() error {
 		var resp Response
 		if c.FullName == "" || c.Name() == "" {
 			resp.OK = true
-		} else if c.FullName == "START" {
-			_, err := s.rw.Write([]byte("HELLO\r\n"))
-			if err != nil {
-				return err
-			}
-			continue
 		} else if h, ok := s.h[c.FullName]; ok {
 			s.mx.Lock()
 			resp = h(c)
