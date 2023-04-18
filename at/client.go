@@ -2,18 +2,21 @@ package at
 
 import (
 	"bufio"
+	"context"
 	"io"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/mastercactapus/embedded/term/ascii"
 )
 
 // Client is an AT command client.
 type Client struct {
-	rw io.ReadWriter
-	s  *bufio.Scanner
-	mx sync.Mutex
+	rw      io.ReadWriter
+	sr      *ScanReader
+	mx      sync.Mutex
+	timeout time.Duration
 }
 
 // NewClient creates a new AT command client.
@@ -21,7 +24,13 @@ func NewClient(rw io.ReadWriter) *Client {
 	s := bufio.NewScanner(rw)
 	s.Split(bufio.ScanLines)
 
-	return &Client{rw: rw, s: s}
+	return &Client{rw: rw, sr: NewScanReader(s)}
+}
+
+// SetTimeout sets the timeout for reading command responses
+// from the modem.
+func (c *Client) SetTimeout(d time.Duration) {
+	c.timeout = d
 }
 
 // Set sets the value of a parameter.
@@ -79,11 +88,23 @@ func (c *Client) _Command(name, line string) (*Response, error) {
 	if err != nil {
 		return nil, ascii.Errorf("at: write: %w", err)
 	}
+	ctx := context.Background()
+	if c.timeout > 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, c.timeout)
+		defer cancel()
+	}
 
 	var resp Response
-	for c.s.Scan() {
-		line := c.s.Text()
+	for {
+		line, err := c.sr.Next(ctx)
+		if err != nil {
+			return nil, ascii.Errorf("at: read: %w", err)
+		}
+
 		switch {
+		case line == "":
+			return nil, io.ErrUnexpectedEOF
 		case line == "OK":
 			resp.OK = true
 			return &resp, nil
@@ -96,10 +117,4 @@ func (c *Client) _Command(name, line string) (*Response, error) {
 			return nil, ascii.Errorf("at: invalid response: %q", line)
 		}
 	}
-
-	if c.s.Err() != nil {
-		return nil, ascii.Errorf("at: read: %w", c.s.Err())
-	}
-
-	return nil, io.ErrUnexpectedEOF
 }
