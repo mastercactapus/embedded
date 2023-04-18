@@ -17,11 +17,11 @@ type Client struct {
 }
 
 // NewClient creates a new AT command client.
-func NewClient(rw io.ReadWriter) (*Client, error) {
+func NewClient(rw io.ReadWriter) *Client {
 	s := bufio.NewScanner(rw)
 	s.Split(bufio.ScanLines)
 
-	return &Client{rw: rw, s: s}, nil
+	return &Client{rw: rw, s: s}
 }
 
 // Set sets the value of a parameter.
