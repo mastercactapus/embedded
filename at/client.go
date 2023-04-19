@@ -84,7 +84,7 @@ func (c *Client) _Command(name, line string) (*Response, error) {
 		return nil, ascii.Errorf("at: invalid command: %q", line)
 	}
 
-	err := ascii.Fprintf(c.rw, "%s\r\n", line)
+	_, err := io.WriteString(c.rw, line+"\r\n")
 	if err != nil {
 		return nil, ascii.Errorf("at: write: %w", err)
 	}
