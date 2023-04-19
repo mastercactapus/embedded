@@ -6,8 +6,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/mastercactapus/embedded/term/ascii"
 )
 
 // Server is an AT command server.
@@ -17,8 +15,8 @@ import (
 // Data sent will be attributed to the last command
 // received.
 type Server struct {
-	rw io.ReadWriter
-	s  *bufio.Scanner
+	s *bufio.Scanner
+	w *bufio.Writer
 
 	idleDur time.Duration
 	t       *time.Timer
@@ -34,7 +32,7 @@ func NewServer(rw io.ReadWriter) *Server {
 	s := bufio.NewScanner(rw)
 
 	s.Split(bufio.ScanLines)
-	return &Server{rw: rw, s: s}
+	return &Server{w: bufio.NewWriter(rw), s: s}
 }
 
 // HandleFunc registers a handler for a command.
@@ -118,20 +116,21 @@ func (s *Server) respond(c Cmd, resp Response) error {
 		if strings.ContainsRune(data, '\n') {
 			panic("at: data cannot contain newlines")
 		}
-		if err := ascii.Fprintf(s.rw, "+%s: %s\r\n", c.Name(), data); err != nil {
+
+		if _, err := io.WriteString(s.w, "+"+c.Name()+": "+data+"\r\n"); err != nil {
 			return err
 		}
 	}
 
 	if resp.OK {
-		if err := ascii.Fprintf(s.rw, "OK\r\n"); err != nil {
+		if _, err := io.WriteString(s.w, "OK\r\n"); err != nil {
 			return err
 		}
 	} else {
-		if err := ascii.Fprintf(s.rw, "ERROR\r\n"); err != nil {
+		if _, err := io.WriteString(s.w, "ERROR\r\n"); err != nil {
 			return err
 		}
 	}
 
-	return nil
+	return s.w.Flush()
 }
