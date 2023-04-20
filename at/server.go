@@ -28,11 +28,11 @@ type Server struct {
 type HandlerFunc func(Cmd) Response
 
 // NewServer creates a new AT command server.
-func NewServer(rw io.ReadWriter) *Server {
-	s := bufio.NewScanner(rw)
+func NewServer(r io.Reader, w io.Writer) *Server {
+	s := bufio.NewScanner(r)
 
 	s.Split(bufio.ScanLines)
-	return &Server{w: bufio.NewWriter(rw), s: s}
+	return &Server{w: bufio.NewWriter(w), s: s}
 }
 
 // HandleFunc registers a handler for a command.

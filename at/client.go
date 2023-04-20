@@ -3,6 +3,7 @@ package at
 import (
 	"bufio"
 	"context"
+	"errors"
 	"io"
 	"strings"
 	"sync"
@@ -114,7 +115,7 @@ func (c *Client) _Command(name, line string) (*Response, error) {
 			line = strings.TrimPrefix(line, "+"+name+": ")
 			resp.Data = append(resp.Data, line)
 		default:
-			return nil, ascii.Errorf("at: invalid response: %q", line)
+			return nil, errors.New("at: invalid response: " + line)
 		}
 	}
 }
