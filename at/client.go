@@ -2,7 +2,6 @@ package at
 
 import (
 	"bufio"
-	"context"
 	"errors"
 	"io"
 	"strings"
@@ -15,7 +14,7 @@ import (
 // Client is an AT command client.
 type Client struct {
 	rw      io.ReadWriter
-	sr      *ScanReader
+	s       *bufio.Scanner
 	mx      sync.Mutex
 	timeout time.Duration
 }
@@ -25,13 +24,7 @@ func NewClient(rw io.ReadWriter) *Client {
 	s := bufio.NewScanner(rw)
 	s.Split(bufio.ScanLines)
 
-	return &Client{rw: rw, sr: NewScanReader(s)}
-}
-
-// SetTimeout sets the timeout for reading command responses
-// from the modem.
-func (c *Client) SetTimeout(d time.Duration) {
-	c.timeout = d
+	return &Client{rw: rw, s: s}
 }
 
 // Set sets the value of a parameter.
@@ -89,16 +82,10 @@ func (c *Client) _Command(name, line string) (*Response, error) {
 	if err != nil {
 		return nil, ascii.Errorf("at: write: %w", err)
 	}
-	ctx := context.Background()
-	if c.timeout > 0 {
-		var cancel func()
-		ctx, cancel = context.WithTimeout(ctx, c.timeout)
-		defer cancel()
-	}
 
 	var resp Response
-	for {
-		line, err := c.sr.Next(ctx)
+	for c.s.Scan() {
+		line := c.s.Text()
 		if err != nil {
 			return nil, ascii.Errorf("at: read: %w", err)
 		}
@@ -118,4 +105,6 @@ func (c *Client) _Command(name, line string) (*Response, error) {
 			return nil, errors.New("at: invalid response: " + line)
 		}
 	}
+
+	return nil, ascii.Errorf("at: read: %w", c.s.Err())
 }
