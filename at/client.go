@@ -6,17 +6,13 @@ import (
 	"io"
 	"strings"
 	"sync"
-	"time"
-
-	"github.com/mastercactapus/embedded/term/ascii"
 )
 
 // Client is an AT command client.
 type Client struct {
-	rw      io.ReadWriter
-	s       *bufio.Scanner
-	mx      sync.Mutex
-	timeout time.Duration
+	rw io.ReadWriter
+	s  *bufio.Scanner
+	mx sync.Mutex
 }
 
 // NewClient creates a new AT command client.
@@ -27,22 +23,36 @@ func NewClient(rw io.ReadWriter) *Client {
 	return &Client{rw: rw, s: s}
 }
 
+var builders = sync.Pool{
+	New: func() interface{} {
+		return new(strings.Builder)
+	},
+}
+
 // Set sets the value of a parameter.
 //
 // The following example will result in sending "AT+FOO=bar\r\n"
 // to the modem:
 //
 //	data, err := c.Set("foo", "bar")
-func (c *Client) Set(name string, params ...string) (*Response, error) {
+func (c *Client) Set(name string, params ...string) (Response, error) {
 	name = strings.ToUpper(name)
 	name = EscapeString(name, '=', '?')
 
-	escaped := make([]string, 0, len(params))
-	for _, param := range params {
-		escaped = append(escaped, EscapeString(param, ','))
+	b := builders.Get().(*strings.Builder)
+	b.Reset()
+	b.WriteString("AT+")
+	b.WriteString(name)
+	b.WriteString("=")
+	for i, param := range params {
+		if i > 0 {
+			b.WriteString(",")
+		}
+		b.WriteString(EscapeString(param, ','))
 	}
+	defer builders.Put(b)
 
-	return c._Command(name, ascii.Sprintf("AT+%s=%s", name, strings.Join(escaped, ",")))
+	return c._Command(name, b.String())
 }
 
 // Query queries the value of a parameter.
@@ -51,11 +61,11 @@ func (c *Client) Set(name string, params ...string) (*Response, error) {
 // to the modem:
 //
 //	data, err := c.Query("foo")
-func (c *Client) Query(name string) (*Response, error) {
+func (c *Client) Query(name string) (Response, error) {
 	name = strings.ToUpper(name)
 	name = EscapeString(name, '=', '?')
 
-	return c._Command(name, ascii.Sprintf("AT+%s?", name))
+	return c._Command(name, "AT+"+name+"?")
 }
 
 // Execute executes a command.
@@ -64,47 +74,43 @@ func (c *Client) Query(name string) (*Response, error) {
 // to the modem:
 //
 //	data, err := c.Execute("foo")
-func (c *Client) Execute(name string) (*Response, error) {
+func (c *Client) Execute(name string) (Response, error) {
 	name = strings.ToUpper(name)
 	name = EscapeString(name, '=', '?')
 
-	return c._Command(name, ascii.Sprintf("AT+%s", name))
+	return c._Command(name, "AT+"+name)
 }
 
-func (c *Client) _Command(name, line string) (*Response, error) {
+func (c *Client) _Command(name, line string) (resp Response, err error) {
 	c.mx.Lock()
 	defer c.mx.Unlock()
 	if strings.ContainsRune(line, '\n') {
-		return nil, ascii.Errorf("at: invalid command: %q", line)
+		return resp, errors.New("at: invalid command: " + line)
 	}
 
-	_, err := io.WriteString(c.rw, line+"\r\n")
+	_, err = io.WriteString(c.rw, line+"\r\n")
 	if err != nil {
-		return nil, ascii.Errorf("at: write: %w", err)
+		return resp, err
 	}
 
-	var resp Response
 	for c.s.Scan() {
 		line := c.s.Text()
-		if err != nil {
-			return nil, ascii.Errorf("at: read: %w", err)
-		}
 
 		switch {
 		case line == "":
-			return nil, io.ErrUnexpectedEOF
+			return resp, io.ErrUnexpectedEOF
 		case line == "OK":
 			resp.OK = true
-			return &resp, nil
+			return resp, nil
 		case line == "ERROR":
-			return &resp, nil
+			return resp, nil
 		case strings.HasPrefix(line, "+"+name+": "):
 			line = strings.TrimPrefix(line, "+"+name+": ")
 			resp.Data = append(resp.Data, line)
 		default:
-			return nil, errors.New("at: invalid response: " + line)
+			return resp, errors.New("at: invalid response: " + line)
 		}
 	}
 
-	return nil, ascii.Errorf("at: read: %w", c.s.Err())
+	return resp, c.s.Err()
 }
