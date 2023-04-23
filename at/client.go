@@ -35,7 +35,7 @@ var builders = sync.Pool{
 // to the modem:
 //
 //	data, err := c.Set("foo", "bar")
-func (c *Client) Set(name string, params ...string) (Response, error) {
+func (c *Client) Set(name string, params ...string) (*Response, error) {
 	name = strings.ToUpper(name)
 	name = EscapeString(name, '=', '?')
 
@@ -61,7 +61,7 @@ func (c *Client) Set(name string, params ...string) (Response, error) {
 // to the modem:
 //
 //	data, err := c.Query("foo")
-func (c *Client) Query(name string) (Response, error) {
+func (c *Client) Query(name string) (*Response, error) {
 	name = strings.ToUpper(name)
 	name = EscapeString(name, '=', '?')
 
@@ -74,31 +74,33 @@ func (c *Client) Query(name string) (Response, error) {
 // to the modem:
 //
 //	data, err := c.Execute("foo")
-func (c *Client) Execute(name string) (Response, error) {
+func (c *Client) Execute(name string) (*Response, error) {
 	name = strings.ToUpper(name)
 	name = EscapeString(name, '=', '?')
 
 	return c._Command(name, "AT+"+name)
 }
 
-func (c *Client) _Command(name, line string) (resp Response, err error) {
+func (c *Client) _Command(name, line string) (*Response, error) {
+	if strings.ContainsRune(line, '\n') {
+		return nil, errors.New("at: invalid command: " + line)
+	}
+
 	c.mx.Lock()
 	defer c.mx.Unlock()
-	if strings.ContainsRune(line, '\n') {
-		return resp, errors.New("at: invalid command: " + line)
-	}
 
-	_, err = io.WriteString(c.rw, line+"\r\n")
+	_, err := io.WriteString(c.rw, line+"\r\n")
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
+	resp := new(Response)
 	for c.s.Scan() {
 		line := c.s.Text()
 
 		switch {
 		case line == "":
-			return resp, io.ErrUnexpectedEOF
+			return nil, io.ErrUnexpectedEOF
 		case line == "OK":
 			resp.OK = true
 			return resp, nil
@@ -108,9 +110,13 @@ func (c *Client) _Command(name, line string) (resp Response, err error) {
 			line = strings.TrimPrefix(line, "+"+name+": ")
 			resp.Data = append(resp.Data, line)
 		default:
-			return resp, errors.New("at: invalid response: " + line)
+			return nil, errors.New("at: invalid response: " + line)
 		}
 	}
 
-	return resp, c.s.Err()
+	if c.s.Err() != nil {
+		return nil, c.s.Err()
+	}
+
+	return nil, io.ErrUnexpectedEOF
 }
