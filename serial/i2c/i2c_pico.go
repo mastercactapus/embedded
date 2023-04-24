@@ -39,13 +39,13 @@ func (c *ctrl) SetBaudRate(br uint32) {
 //go:inline
 func wait(cyc *int) {
 	arm.AsmFull(`
-	ldr {}, {cyc}
-	1:
-	subs {}, #1
-	bne 1b
-`,
+		mov {}, {cyc}
+		1:
+		subs {}, #1
+		bne 1b
+	`,
 		map[string]interface{}{
-			"cyc": cyc,
+			"cyc": *cyc,
 		})
 }
 
@@ -58,16 +58,18 @@ func (c *ctrl) clockUp() {
 }
 
 // Start will send a start condition on the bus.
-func (c *ctrl) Start() {
+func (c *ctrl) Start() error {
 	c.clockUp()
 	wait(&c.half)
 	rp.SIO.GPIO_OE_SET.Set(c.sdaMask)
 	wait(&c.half)
 	rp.SIO.GPIO_OE_SET.Set(c.sclMask)
 	wait(&c.half)
+
+	return nil
 }
 
-func (c *ctrl) WriteBit(v bool) {
+func (c *ctrl) WriteBit(v bool) error {
 	if v {
 		rp.SIO.GPIO_OE_CLR.Set(c.sdaMask)
 	} else {
@@ -78,9 +80,11 @@ func (c *ctrl) WriteBit(v bool) {
 	wait(&c.half)
 	rp.SIO.GPIO_OE_SET.Set(c.sclMask)
 	wait(&c.half)
+
+	return nil
 }
 
-func (c *ctrl) ReadBit() (value bool) {
+func (c *ctrl) ReadBit() (value bool, err error) {
 	rp.SIO.GPIO_OE_CLR.Set(c.sdaMask)
 	wait(&c.half)
 	c.clockUp()
@@ -97,17 +101,19 @@ func (c *ctrl) ReadBit() (value bool) {
 	if !value {
 		rp.SIO.GPIO_OE_CLR.Set(c.sdaMask)
 	}
-	return value
+	return value, nil
 }
 
 // Stop will send a stop condition on the bus.
-func (c *ctrl) Stop() {
+func (c *ctrl) Stop() error {
 	rp.SIO.GPIO_OE_SET.Set(c.sdaMask)
 	wait(&c.half)
 	c.clockUp()
 	wait(&c.half)
 	rp.SIO.GPIO_OE_CLR.Set(c.sdaMask)
 	wait(&c.half)
+
+	return nil
 }
 
 func I2C0() *I2C { return New(NewController(machine.I2C0_SDA_PIN, machine.I2C0_SCL_PIN)) }
