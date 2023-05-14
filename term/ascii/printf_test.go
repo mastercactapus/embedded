@@ -39,6 +39,7 @@ func TestSprintf(t *testing.T) {
 	check("foo %#04x bar", 1345)
 
 	check("foo %d bar", "f")
+	check("foo %d bar", 0)
 	check("foo %s bar", 1)
 
 	check("foo %d bar", 1)

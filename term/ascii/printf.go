@@ -436,6 +436,9 @@ func (f *fPrinter) printInt(p fmtParam, v interface{}) {
 		return
 	}
 	var buf bytes.Buffer
+	if b == 0 {
+		buf.WriteByte('0')
+	}
 	for b > 0 {
 		buf.WriteByte(byte(b%10 + '0'))
 		b /= 10
